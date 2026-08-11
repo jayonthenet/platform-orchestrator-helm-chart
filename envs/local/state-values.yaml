@@ -4,13 +4,9 @@ installPostgres: true
 
 installCertManager: true
 
-installRabbitMQ: true
-
 installSpiceDB: true
 
 installKeycloak: true
-
-installSeaweed: true
 
 installOpenTelemetry: true
 
@@ -61,7 +57,7 @@ platformOrchestratorValues:
     image:
       repository: ghcr.io/stellwerk-labs/platform-orchestrator-dp
     config:
-      RUNNER_IMAGE: ghcr.io/stellwerk-labs/platform-orchestrator-runner:v1.0.0
+      RUNNER_IMAGE: ghcr.io/stellwerk-labs/platform-orchestrator-runner:v2.0.0
       OIDC_ISSUER_URL: "https://oidc.platform-orchestrator.dev"
     gatewayApiOidc:
       route:
@@ -78,14 +74,6 @@ platformOrchestratorValues:
   console:
     image:
       repository: ghcr.io/stellwerk-labs/platform-orchestrator-frontend
-
-seaweedfsOperatorValues:
-  webhook:
-    enabled: false
-  serviceMonitor:
-    enabled: false
-  grafanaDashboard:
-    enabled: false
 
 openTelemetryOperatorValues:
   manager:

@@ -4,47 +4,50 @@ installPostgres: true
 
 installCertManager: true
 
-installRabbitMQ: true
-
 installSpiceDB: true
 
 installKeycloak: true
 
-installSeaweed: true
-
 installOpenTelemetry: true
 
 installVault: true
+
+autoInitVault: false
 
 initialOrgId: ""
 
 gatewayclassValues: {}
 
 platformOrchestratorValues:
-  rabbitmq:
+  messagingBootstrap:
     replicas: 3
-    affinity:
-      podAntiAffinity:
-        requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchExpressions:
-                - key: app.kubernetes.io/name
-                  operator: In
-                  values:
-                    - platform-orchestrator-rabbitmq
-            topologyKey: kubernetes.io/hostname
-    persistence:
-      storage: 10Gi
-    override:
-      topologySpreadConstraints:
-        - maxSkew: 1
-          topologyKey: "topology.kubernetes.io/zone"
-          whenUnsatisfiable: DoNotSchedule
+  nats:
+    config:
+      cluster:
+        enabled: true
+        replicas: 3
+      jetstream:
+        fileStore:
+          pvc:
+            size: 10Gi
+    statefulSet:
+      merge:
+        spec:
+          template:
+            spec:
+              affinity:
+                podAntiAffinity:
+                  requiredDuringSchedulingIgnoredDuringExecution:
+                    - labelSelector:
+                        matchExpressions:
+                          - key: app.kubernetes.io/name
+                            operator: In
+                            values:
+                              - nats
+                      topologyKey: kubernetes.io/hostname
 
   spicedb:
     replicas: 2
-
-seaweedfsOperatorValues: {}
 
 vaultValues:
   injector:

@@ -1,9 +1,0 @@
-clusterOperator:
-  image:
-    repository: rabbitmqoperator/cluster-operator
-    tag: 2.19.0
-
-messagingTopologyOperator:
-  image:
-    repository: rabbitmqoperator/messaging-topology-operator
-    tag: 1.18.2

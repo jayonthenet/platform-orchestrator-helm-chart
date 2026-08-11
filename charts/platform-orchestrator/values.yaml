@@ -8,8 +8,7 @@
 #   - IAM (backend-module subchart)
 #   - Console (frontend)
 #   - CNPG Databases (PostgreSQL via CloudNativePG)
-#   - RabbitMQ (message broker)
-#   - SeaweedFS (S3-compatible object storage)
+#   - NATS JetStream (durable message broker)
 #   - SpiceDB (authorization)
 #   - Keycloak (identity provider)
 # =============================================================================
@@ -25,7 +24,7 @@ control-plane:
     # -- Image repository. Prepend repository hostname and path as per your setup, e.g. `my-registry.example.com/orchestrator/platform-orchestrator-cp`
     repository: ghcr.io/stellwerk-labs/platform-orchestrator-cp
     # -- Image tag
-    tag: v1.0.2
+    tag: v2.0.0
 
   # -- Configuration environment variables (injected via ConfigMap)
   config:
@@ -42,6 +41,8 @@ control-plane:
     VAULT_ROLE: "orchestrator-control-plane"
     # -- OpenTelemetry collector endpoint
     OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-agent-collector.opentelemetry.svc.cluster.local:4317"
+    # -- NATS endpoint used for durable service events
+    NATS_URL: "nats://platform-orchestrator-nats:4222"
 
   # -- Additional environment variables (injected directly into the pod spec)
   # Typically used for secret references
@@ -56,16 +57,11 @@ control-plane:
         secretKeyRef:
           name: controlplane-db-secret
           key: username
-    - name: AMQP_USERNAME
+    - name: NATS_TOKEN
       valueFrom:
         secretKeyRef:
-          name: platform-orchestrator-rabbitmq-platform-user-credentials
-          key: username
-    - name: AMQP_PASSWORD
-      valueFrom:
-        secretKeyRef:
-          name: platform-orchestrator-rabbitmq-platform-user-credentials
-          key: password
+          name: platform-orchestrator-secrets
+          key: natsAuthToken
 
   # -- Service account configuration
   serviceAccount:
@@ -102,7 +98,7 @@ data-plane:
     # -- Image repository. Prepend repository hostname and path as per your setup, e.g. `my-registry.example.com/orchestrator/platform-orchestrator-dp`
     repository: ghcr.io/stellwerk-labs/platform-orchestrator-dp
     # -- Image tag
-    tag: v1.0.2
+    tag: v2.0.0
 
   # -- Service configuration
   service:
@@ -112,7 +108,7 @@ data-plane:
   # -- Configuration environment variables (injected via ConfigMap)
   config:
     # -- Runner image used for deployments. Prepend repository hostname and path as per your setup, e.g. `my-registry.example.com/orchestrator/platform-orchestrator-runner:vX.Y.Z`
-    RUNNER_IMAGE: ghcr.io/stellwerk-labs/platform-orchestrator-runner:v1.0.3
+    RUNNER_IMAGE: ghcr.io/stellwerk-labs/platform-orchestrator-runner:v2.0.0
     # -- Internal data plane hostname (headless service FQDN)
     # Format: <headless svc name>.<namespace>.svc.cluster.local
     INTERNAL_DATAPLANE_HOSTNAME: platform-orchestrator-data-plane.platform-orchestrator.svc.cluster.local
@@ -120,10 +116,6 @@ data-plane:
     K8S_RUNNER_POD_SCHEDULING_DELAY: 30s
     # -- OIDC issuer URL for the built-in OIDC provider (leave empty to disable)
     OIDC_ISSUER_URL: ""
-    # -- S3 bucket name for runner deployment logs
-    RUNNER_LOGS_BUCKET: "deployment-runner-logs"
-    # -- S3-compatible endpoint for runner logs (SeaweedFS filer)
-    RUNNER_LOGS_BUCKET_ENDPOINT: "http://platform-orchestrator-seaweed-filer.platform-orchestrator.svc.cluster.local:8333"
     # -- PostgreSQL database name for the data plane
     DATABASE_NAME: "orchestrator-dataplane"
     # -- PostgreSQL port
@@ -137,6 +129,10 @@ data-plane:
     VAULT_ROLE: "orchestrator-data-plane"
     # -- OpenTelemetry collector endpoint
     OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-agent-collector.opentelemetry.svc.cluster.local:4317"
+    # -- NATS endpoint used for durable deployment and runner messages
+    NATS_URL: "nats://platform-orchestrator-nats:4222"
+    # -- Runner transport mode: simple, edge, or airgap
+    NATS_RUNNER_MODE: "simple"
 
   # -- Additional environment variables (injected directly into the pod spec)
   # Typically used for secret references
@@ -151,26 +147,16 @@ data-plane:
         secretKeyRef:
           name: dataplane-db-secret
           key: username
-    - name: AMQP_USERNAME
+    - name: NATS_TOKEN
       valueFrom:
         secretKeyRef:
-          name: platform-orchestrator-rabbitmq-platform-user-credentials
-          key: username
-    - name: AMQP_PASSWORD
-      valueFrom:
-        secretKeyRef:
-          name: platform-orchestrator-rabbitmq-platform-user-credentials
-          key: password
+          name: platform-orchestrator-secrets
+          key: natsAuthToken
     - name: RUNNER_TOKEN_SALT
       valueFrom:
         secretKeyRef:
           name: platform-orchestrator-secrets
           key: runnerTokenSalt
-    - name: RUNNER_LOGS_BUCKET_CREDS
-      valueFrom:
-        secretKeyRef:
-          name: platform-orchestrator-s3-admin-credentials
-          key: credentials_json
 
   # -- Service account configuration
   serviceAccount:
@@ -184,7 +170,7 @@ data-plane:
       matches:
         - path:
             type: RegularExpression
-            value: "/orgs/[^/]+/(deployments|last-deployments|active-resources|metadata-keys|remote-runners)($|/.*)"
+            value: "/orgs/[^/]+/(deployments|last-deployments|active-resources|metadata-keys)($|/.*)"
       # -- Request timeout for data plane routes
       timeouts:
         request: 45s
@@ -208,7 +194,7 @@ iam:
     # -- Image repository. Prepend repository hostname and path as per your setup, e.g. `my-registry.example.com/orchestrator/platform-orchestrator-iam`
     repository: ghcr.io/stellwerk-labs/platform-orchestrator-iam
     # -- Image tag
-    tag: v1.0.1
+    tag: v2.0.0
 
   # -- Configuration environment variables (injected via ConfigMap)
   config:
@@ -228,6 +214,8 @@ iam:
     DATABASE_HOST: platform-orchestrator-cnpg-databases
     # -- SpiceDB gRPC endpoint for authorization
     SPICEDB_URL: "platform-orchestrator-spicedb:50051"
+    # -- NATS endpoint used for durable identity events
+    NATS_URL: "nats://platform-orchestrator-nats:4222"
     # -- OpenTelemetry collector endpoint
     OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-agent-collector.opentelemetry.svc.cluster.local:4317"
 
@@ -244,16 +232,11 @@ iam:
         secretKeyRef:
           name: iam-db-secret
           key: username
-    - name: AMQP_USERNAME
+    - name: NATS_TOKEN
       valueFrom:
         secretKeyRef:
-          name: platform-orchestrator-rabbitmq-platform-user-credentials
-          key: username
-    - name: AMQP_PASSWORD
-      valueFrom:
-        secretKeyRef:
-          name: platform-orchestrator-rabbitmq-platform-user-credentials
-          key: password
+          name: platform-orchestrator-secrets
+          key: natsAuthToken
     - name: SPICEDB_PRE_SHARED_KEY
       valueFrom:
         secretKeyRef:
@@ -323,25 +306,54 @@ console:
 # Subchart Toggles
 # -----------------------------------------------------------------------------
 # Each subchart can be disabled if you want to use an external service instead
-# (e.g., a managed PostgreSQL, an external RabbitMQ cluster, etc.).
+# (e.g., a managed PostgreSQL or an external NATS cluster).
 
 # -- CNPG PostgreSQL databases subchart
 cnpg-databases:
   # -- Enable the in-cluster PostgreSQL database (disable to use external DB)
   enabled: true
 
-# -- RabbitMQ subchart
-rabbitmq:
-  # -- Enable the in-cluster RabbitMQ broker (disable to use external AMQP)
+# -- Official NATS subchart. Disable it when using an external NATS service.
+nats:
   enabled: true
+  config:
+    jetstream:
+      enabled: true
+      fileStore:
+        enabled: true
+        pvc:
+          enabled: true
+          size: 10Gi
+    merge:
+      authorization:
+        token: << $NATS_AUTH_TOKEN >>
+  container:
+    env:
+      NATS_AUTH_TOKEN:
+        valueFrom:
+          secretKeyRef:
+            name: platform-orchestrator-secrets
+            key: natsAuthToken
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi
 
-# -- SeaweedFS subchart (S3-compatible storage for runner logs)
-seaweed:
-  # -- Enable the in-cluster SeaweedFS (disable to use external S3)
+messagingBootstrap:
+  # -- Provision immutable JetStream streams and the encrypted runner-log object bucket.
   enabled: true
-  image:
-    # -- SeaweedFS image tag
-    tag: "4.07"
+  image: natsio/nats-box:0.19.5
+  replicas: 1
+  maxBytes:
+    events: "1073741824"
+    runnerCommands: "536870912"
+    runnerEvents: "1073741824"
+    deadLetters: "536870912"
+    runnerLogs: "2147483648"
+    runnerBundles: "3221225472"
 
 # -- SpiceDB subchart (authorization engine)
 spicedb:
@@ -402,18 +414,6 @@ global:
         solvers: []
 
   # ---------------------------------------------------------------------------
-  # S3 Storage Credentials
-  # ---------------------------------------------------------------------------
-  s3:
-    adminAuth:
-      # -- Name of the secret containing S3 admin credentials
-      secretName: platform-orchestrator-s3-admin-credentials
-      # -- S3 admin access key ID (set if creating the secret via Helm)
-      # accessKeyId: YOUR_ADMIN_ACCESS_KEY
-      # -- S3 admin secret access key (set if creating the secret via Helm)
-      # secretAccessKey: YOUR_ADMIN_SECRET_KEY
-
-  # ---------------------------------------------------------------------------
   # Internal Service URLs
   # ---------------------------------------------------------------------------
   # These are used for inter-service communication within the cluster.
@@ -426,12 +426,8 @@ global:
     IAM_URL: http://platform-orchestrator-iam:8080
     # -- Vault URL for secret management
     VAULT_URL: http://openbao.openbao:8200
-    # -- RabbitMQ host
-    AMQP_HOST: platform-orchestrator-rabbitmq
-    # -- RabbitMQ port
-    AMQP_PORT: "5672"
-    # -- RabbitMQ virtual host
-    AMQP_VHOST: platform
+    # -- NATS endpoint shared by the control plane, data plane, and IAM service
+    NATS_URL: nats://platform-orchestrator-nats:4222
 
   # -- Enable the admin API (generates a superUserToken in the secrets)
   enableAdminApi: true

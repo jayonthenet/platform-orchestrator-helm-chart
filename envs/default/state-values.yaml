@@ -4,13 +4,9 @@ installPostgres: true
 
 installCertManager: true
 
-installRabbitMQ: true
-
 installSpiceDB: true
 
 installKeycloak: true
-
-installSeaweed: true
 
 installOpenTelemetry: true
 
@@ -23,14 +19,6 @@ initialOrgId: ""
 gatewayclassValues: {}
 
 platformOrchestratorValues: {}
-
-seaweedfsOperatorValues:
-  webhook:
-    enabled: false
-  serviceMonitor:
-    enabled: false
-  grafanaDashboard:
-    enabled: false
 
 vaultValues:
   injector:

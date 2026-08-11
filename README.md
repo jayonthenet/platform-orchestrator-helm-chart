@@ -2,6 +2,10 @@
 
 Helm charts to install and operate Platform Orchestrator in Kubernetes.
 
+Chart `0.2.0` is the breaking NATS transport release. Read the
+[`v0.2.0` release notes](docs/releases/v0.2.0.md) before upgrading; mixed `v1`
+and `v2` backend or runner images are unsupported.
+
 ## Charts
 
 All releases are managed via [Helmfile](helmfile.yaml.gotmpl). The main chart
@@ -13,9 +17,7 @@ infrastructure) that it depends on.
 | `envoy-gateway` | `oci://docker.io/envoyproxy/gateway-helm` | External | Envoy Gateway controller |
 | `gatewayclass` | [charts/gatewayclass](charts/gatewayclass) | Local | GatewayClass resource for Envoy Gateway |
 | `cnpg` | `cnpg/cloudnative-pg` | External | CloudNativePG operator for PostgreSQL |
-| `seaweedfs-operator` | `seaweedfs-operator/seaweedfs-operator` | External | SeaweedFS operator |
 | `cert-manager` | `oci://quay.io/jetstack/charts/cert-manager` | External | TLS certificate management |
-| `rabbitmq-cluster-operator` | [charts/rabbitmq-cluster-operator](charts/rabbitmq-cluster-operator) | Local | RabbitMQ Cluster Operator |
 | `spicedb-operator` | [charts/spicedb-operator](charts/spicedb-operator) | Local | SpiceDB operator |
 | `keycloak-operator` | [charts/keycloak-operator](charts/keycloak-operator) | Local | Keycloak operator |
 | `openbao` | `openbao/openbao` | External | OpenBao (Vault-compatible secret store) |
@@ -62,6 +64,10 @@ component image repositories and configure `global.imagePullSecrets`.
 ```bash
 make deploy
 ```
+
+The chart-generated NATS token is intended for local bootstrap. Before a
+production rollout, provision per-service and per-runner subject-scoped NATS
+credentials and establish rotation and revocation procedures.
 
 ## Releasing the OCI chart
 
