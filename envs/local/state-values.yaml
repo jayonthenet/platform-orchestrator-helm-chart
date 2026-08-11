@@ -57,7 +57,8 @@ platformOrchestratorValues:
     image:
       repository: ghcr.io/stellwerk-labs/platform-orchestrator-dp
     config:
-      RUNNER_IMAGE: ghcr.io/stellwerk-labs/platform-orchestrator-runner:v2.0.0
+      RUNNER_IMAGE: ghcr.io/stellwerk-labs/platform-orchestrator-runner:v3.0.0
+      RUNNER_GATEWAY_URL: "https://api.platform-orchestrator.dev/runner-gateway"
       OIDC_ISSUER_URL: "https://oidc.platform-orchestrator.dev"
     gatewayApiOidc:
       route:

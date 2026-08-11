@@ -2,9 +2,9 @@
 
 Helm charts to install and operate Platform Orchestrator in Kubernetes.
 
-Chart `0.2.0` is the breaking NATS transport release. Read the
-[`v0.2.0` release notes](docs/releases/v0.2.0.md) before upgrading; mixed `v1`
-and `v2` backend or runner images are unsupported.
+Chart `0.3.0` exposes the HTTPS runner gateway while keeping NATS JetStream
+internal. Keep the chart, data plane, and runner image versions from the same
+compatibility set.
 
 ## Charts
 

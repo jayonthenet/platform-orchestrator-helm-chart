@@ -98,7 +98,7 @@ data-plane:
     # -- Image repository. Prepend repository hostname and path as per your setup, e.g. `my-registry.example.com/orchestrator/platform-orchestrator-dp`
     repository: ghcr.io/stellwerk-labs/platform-orchestrator-dp
     # -- Image tag
-    tag: v2.0.0
+    tag: v3.0.0
 
   # -- Service configuration
   service:
@@ -108,7 +108,7 @@ data-plane:
   # -- Configuration environment variables (injected via ConfigMap)
   config:
     # -- Runner image used for deployments. Prepend repository hostname and path as per your setup, e.g. `my-registry.example.com/orchestrator/platform-orchestrator-runner:vX.Y.Z`
-    RUNNER_IMAGE: ghcr.io/stellwerk-labs/platform-orchestrator-runner:v2.0.0
+    RUNNER_IMAGE: ghcr.io/stellwerk-labs/platform-orchestrator-runner:v3.0.0
     # -- Internal data plane hostname (headless service FQDN)
     # Format: <headless svc name>.<namespace>.svc.cluster.local
     INTERNAL_DATAPLANE_HOSTNAME: platform-orchestrator-data-plane.platform-orchestrator.svc.cluster.local
@@ -131,8 +131,11 @@ data-plane:
     OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-agent-collector.opentelemetry.svc.cluster.local:4317"
     # -- NATS endpoint used for durable deployment and runner messages
     NATS_URL: "nats://platform-orchestrator-nats:4222"
-    # -- Runner transport mode: simple, edge, or airgap
-    NATS_RUNNER_MODE: "simple"
+    # -- Public HTTPS gateway used by runner Jobs outside this Kubernetes cluster.
+    # Keep the hostname aligned with global.gatewayApi.backend.hostname.
+    RUNNER_GATEWAY_URL: "https://api.platform-orchestrator.local/runner-gateway"
+    # -- Cluster-local gateway used by Kubernetes runner Jobs created in this cluster.
+    RUNNER_GATEWAY_INTERNAL_URL: "http://platform-orchestrator-runner-gateway:8080/runner-gateway"
 
   # -- Additional environment variables (injected directly into the pod spec)
   # Typically used for secret references
@@ -157,6 +160,28 @@ data-plane:
         secretKeyRef:
           name: platform-orchestrator-secrets
           key: runnerTokenSalt
+
+# -----------------------------------------------------------------------------
+# Runner Gateway
+# -----------------------------------------------------------------------------
+# The gateway is the only runner-facing component. It translates the public
+# HTTPS protocol into the internal JetStream streams and object stores.
+runnerGateway:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: ghcr.io/stellwerk-labs/platform-orchestrator-runner
+    tag: v3.0.0
+    pullPolicy: IfNotPresent
+  service:
+    port: 8080
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
 
   # -- Service account configuration
   serviceAccount:

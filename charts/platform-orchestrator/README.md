@@ -2,8 +2,8 @@
 
 Platform Orchestrator
 
-Chart `0.2.0` is a breaking, atomic migration from RabbitMQ and direct runner
-HTTP calls to NATS JetStream. Do not mix `v1` and `v2` services or runners.
+Chart `0.3.0` keeps NATS JetStream internal and exposes the stateless HTTPS
+runner gateway. Do not mix `v2` data-plane/runner images with `v3` images.
 
 ## Architecture
 
@@ -17,6 +17,7 @@ The chart deploys the following components:
 | **Console** | `console` | Web-based UI |
 | **PostgreSQL** | `cnpg-databases` | CloudNativePG-managed PostgreSQL cluster |
 | **NATS JetStream** | `nats` | Durable command and event broker |
+| **Runner gateway** | runner image | Outbound HTTPS interface for agents and deployment Jobs |
 | **SpiceDB** | `spicedb` | Zanzibar-inspired authorization engine |
 | **Keycloak** | `keycloak` | Identity provider and SSO |
 
@@ -39,8 +40,14 @@ helm install platform-orchestrator ./charts/platform-orchestrator \
 ```
 
 The generated shared NATS token is for local bootstrap. Production deployments
-must supply per-service and per-runner subject-scoped credentials with a defined
-issuance, rotation, and revocation process.
+should supply scoped internal service credentials with a defined issuance,
+rotation, and revocation process. Runners receive only HTTPS credentials.
+
+Set `data-plane.config.RUNNER_GATEWAY_URL` to the public HTTPS URL that ECS and
+other runners outside the cluster can reach. Keep
+`RUNNER_GATEWAY_INTERNAL_URL` on the cluster-local gateway Service for
+Kubernetes Jobs created inside this cluster. When the API hostname changes,
+update the public runner gateway URL with it.
 
 ## Values
 
@@ -127,31 +134,30 @@ issuance, rotation, and revocation process.
 | control-plane.serviceAccount.create | bool | `true` | Create a dedicated service account |
 | control-plane.serviceAccount.name | string | `""` | Override the service account name (defaults to fullname) |
 | control-plane.tolerations | list | `[]` | Pod tolerations |
-| data-plane | object | `{"config":{"DATABASE_HOST":"platform-orchestrator-cnpg-databases","DATABASE_NAME":"orchestrator-dataplane","DATABASE_PORT":"5432","INTERNAL_DATAPLANE_HOSTNAME":"platform-orchestrator-data-plane.platform-orchestrator.svc.cluster.local","K8S_RUNNER_POD_SCHEDULING_DELAY":"30s","NATS_RUNNER_MODE":"simple","NATS_URL":"nats://platform-orchestrator-nats:4222","OIDC_ISSUER_URL":"","OTEL_EXPORTER_OTLP_ENDPOINT":"http://otel-agent-collector.opentelemetry.svc.cluster.local:4317","RUNNER_IMAGE":"ghcr.io/stellwerk-labs/platform-orchestrator-runner:v2.0.0","VAULT_AUTH":"kubernetes:platform-orchestrator-data-plane:platform-orchestrator","VAULT_ROLE":"orchestrator-data-plane"},"env":[{"name":"DATABASE_PASSWORD","valueFrom":{"secretKeyRef":{"key":"password","name":"dataplane-db-secret"}}},{"name":"DATABASE_USER","valueFrom":{"secretKeyRef":{"key":"username","name":"dataplane-db-secret"}}},{"name":"NATS_TOKEN","valueFrom":{"secretKeyRef":{"key":"natsAuthToken","name":"platform-orchestrator-secrets"}}},{"name":"RUNNER_TOKEN_SALT","valueFrom":{"secretKeyRef":{"key":"runnerTokenSalt","name":"platform-orchestrator-secrets"}}}],"gatewayApi":{"route":{"matches":[{"path":{"type":"RegularExpression","value":"/orgs/[^/]+/(deployments|last-deployments|active-resources|metadata-keys)($|/.*)"}}],"timeouts":{"request":"45s"}}},"gatewayApiOidc":{"route":{"matches":[{"path":{"type":"RegularExpression","value":"/(.well-known/openid-configuration|.well-known/jwks)"}}]}},"image":{"repository":"ghcr.io/stellwerk-labs/platform-orchestrator-dp","tag":"v2.0.0"},"service":{"createHeadless":true},"serviceAccount":{"allowCreateToken":true}}` | --------------------------------------------------------------------------- The data plane handles deployments, active resources and logs. It is deployed as a backend-module subchart. |
+| data-plane | object | `{"config":{"DATABASE_HOST":"platform-orchestrator-cnpg-databases","DATABASE_NAME":"orchestrator-dataplane","DATABASE_PORT":"5432","INTERNAL_DATAPLANE_HOSTNAME":"platform-orchestrator-data-plane.platform-orchestrator.svc.cluster.local","K8S_RUNNER_POD_SCHEDULING_DELAY":"30s","NATS_URL":"nats://platform-orchestrator-nats:4222","OIDC_ISSUER_URL":"","OTEL_EXPORTER_OTLP_ENDPOINT":"http://otel-agent-collector.opentelemetry.svc.cluster.local:4317","RUNNER_GATEWAY_INTERNAL_URL":"http://platform-orchestrator-runner-gateway:8080/runner-gateway","RUNNER_GATEWAY_URL":"https://api.platform-orchestrator.local/runner-gateway","RUNNER_IMAGE":"ghcr.io/stellwerk-labs/platform-orchestrator-runner:v3.0.0","VAULT_AUTH":"kubernetes:platform-orchestrator-data-plane:platform-orchestrator","VAULT_ROLE":"orchestrator-data-plane"},"env":[{"name":"DATABASE_PASSWORD","valueFrom":{"secretKeyRef":{"key":"password","name":"dataplane-db-secret"}}},{"name":"DATABASE_USER","valueFrom":{"secretKeyRef":{"key":"username","name":"dataplane-db-secret"}}},{"name":"NATS_TOKEN","valueFrom":{"secretKeyRef":{"key":"natsAuthToken","name":"platform-orchestrator-secrets"}}},{"name":"RUNNER_TOKEN_SALT","valueFrom":{"secretKeyRef":{"key":"runnerTokenSalt","name":"platform-orchestrator-secrets"}}}],"image":{"repository":"ghcr.io/stellwerk-labs/platform-orchestrator-dp","tag":"v3.0.0"},"service":{"createHeadless":true}}` | --------------------------------------------------------------------------- The data plane handles deployments, active resources and logs. It is deployed as a backend-module subchart. |
 | data-plane.affinity | object | `{}` | Pod affinity rules |
-| data-plane.config | object | `{"DATABASE_HOST":"platform-orchestrator-cnpg-databases","DATABASE_NAME":"orchestrator-dataplane","DATABASE_PORT":"5432","INTERNAL_DATAPLANE_HOSTNAME":"platform-orchestrator-data-plane.platform-orchestrator.svc.cluster.local","K8S_RUNNER_POD_SCHEDULING_DELAY":"30s","NATS_RUNNER_MODE":"simple","NATS_URL":"nats://platform-orchestrator-nats:4222","OIDC_ISSUER_URL":"","OTEL_EXPORTER_OTLP_ENDPOINT":"http://otel-agent-collector.opentelemetry.svc.cluster.local:4317","RUNNER_IMAGE":"ghcr.io/stellwerk-labs/platform-orchestrator-runner:v2.0.0","VAULT_AUTH":"kubernetes:platform-orchestrator-data-plane:platform-orchestrator","VAULT_ROLE":"orchestrator-data-plane"}` | Configuration environment variables (injected via ConfigMap) |
+| data-plane.config | object | `{"DATABASE_HOST":"platform-orchestrator-cnpg-databases","DATABASE_NAME":"orchestrator-dataplane","DATABASE_PORT":"5432","INTERNAL_DATAPLANE_HOSTNAME":"platform-orchestrator-data-plane.platform-orchestrator.svc.cluster.local","K8S_RUNNER_POD_SCHEDULING_DELAY":"30s","NATS_URL":"nats://platform-orchestrator-nats:4222","OIDC_ISSUER_URL":"","OTEL_EXPORTER_OTLP_ENDPOINT":"http://otel-agent-collector.opentelemetry.svc.cluster.local:4317","RUNNER_GATEWAY_INTERNAL_URL":"http://platform-orchestrator-runner-gateway:8080/runner-gateway","RUNNER_GATEWAY_URL":"https://api.platform-orchestrator.local/runner-gateway","RUNNER_IMAGE":"ghcr.io/stellwerk-labs/platform-orchestrator-runner:v3.0.0","VAULT_AUTH":"kubernetes:platform-orchestrator-data-plane:platform-orchestrator","VAULT_ROLE":"orchestrator-data-plane"}` | Configuration environment variables (injected via ConfigMap) |
 | data-plane.config.DATABASE_HOST | string | `"platform-orchestrator-cnpg-databases"` | PostgreSQL host (should match the CNPG cluster service name) |
 | data-plane.config.DATABASE_NAME | string | `"orchestrator-dataplane"` | PostgreSQL database name for the data plane |
 | data-plane.config.DATABASE_PORT | string | `"5432"` | PostgreSQL port |
 | data-plane.config.INTERNAL_DATAPLANE_HOSTNAME | string | `"platform-orchestrator-data-plane.platform-orchestrator.svc.cluster.local"` | Internal data plane hostname (headless service FQDN) Format: <headless svc name>.<namespace>.svc.cluster.local |
 | data-plane.config.K8S_RUNNER_POD_SCHEDULING_DELAY | string | `"30s"` | Scheduling delay for runner pods |
-| data-plane.config.NATS_RUNNER_MODE | string | `"simple"` | Runner transport mode: simple, edge, or airgap |
 | data-plane.config.NATS_URL | string | `"nats://platform-orchestrator-nats:4222"` | NATS endpoint used for durable deployment and runner messages |
 | data-plane.config.OIDC_ISSUER_URL | string | `""` | OIDC issuer URL for the built-in OIDC provider (leave empty to disable) |
 | data-plane.config.OTEL_EXPORTER_OTLP_ENDPOINT | string | `"http://otel-agent-collector.opentelemetry.svc.cluster.local:4317"` | OpenTelemetry collector endpoint |
-| data-plane.config.RUNNER_IMAGE | string | `"ghcr.io/stellwerk-labs/platform-orchestrator-runner:v2.0.0"` | Runner image used for deployments. Prepend repository hostname and path as per your setup, e.g. `my-registry.example.com/orchestrator/platform-orchestrator-runner:vX.Y.Z` |
+| data-plane.config.RUNNER_GATEWAY_INTERNAL_URL | string | `"http://platform-orchestrator-runner-gateway:8080/runner-gateway"` | Cluster-local gateway used by Kubernetes runner Jobs created in this cluster. |
+| data-plane.config.RUNNER_GATEWAY_URL | string | `"https://api.platform-orchestrator.local/runner-gateway"` | Public HTTPS gateway used by runner Jobs outside this Kubernetes cluster. Keep the hostname aligned with global.gatewayApi.backend.hostname. |
+| data-plane.config.RUNNER_IMAGE | string | `"ghcr.io/stellwerk-labs/platform-orchestrator-runner:v3.0.0"` | Runner image used for deployments. Prepend repository hostname and path as per your setup, e.g. `my-registry.example.com/orchestrator/platform-orchestrator-runner:vX.Y.Z` |
 | data-plane.config.VAULT_AUTH | string | `"kubernetes:platform-orchestrator-data-plane:platform-orchestrator"` | Vault authentication string Format: "kubernetes:<service account name>:<audience1>,<audience2>" |
 | data-plane.config.VAULT_ROLE | string | `"orchestrator-data-plane"` | Vault role for the data plane |
 | data-plane.env | list | `[{"name":"DATABASE_PASSWORD","valueFrom":{"secretKeyRef":{"key":"password","name":"dataplane-db-secret"}}},{"name":"DATABASE_USER","valueFrom":{"secretKeyRef":{"key":"username","name":"dataplane-db-secret"}}},{"name":"NATS_TOKEN","valueFrom":{"secretKeyRef":{"key":"natsAuthToken","name":"platform-orchestrator-secrets"}}},{"name":"RUNNER_TOKEN_SALT","valueFrom":{"secretKeyRef":{"key":"runnerTokenSalt","name":"platform-orchestrator-secrets"}}}]` | Additional environment variables (injected directly into the pod spec) Typically used for secret references |
 | data-plane.envFromSecrets | list | `[]` | Names of secrets to load as environment variables via envFrom |
-| data-plane.gatewayApi | object | `{"route":{"matches":[{"path":{"type":"RegularExpression","value":"/orgs/[^/]+/(deployments|last-deployments|active-resources|metadata-keys)($|/.*)"}}],"timeouts":{"request":"45s"}}}` | Gateway API HTTPRoute configuration for the data plane |
-| data-plane.gatewayApi.route.matches | list | `[{"path":{"type":"RegularExpression","value":"/orgs/[^/]+/(deployments|last-deployments|active-resources|metadata-keys)($|/.*)"}}]` | Path matching rules for data plane API endpoints |
-| data-plane.gatewayApi.route.timeouts | object | `{"request":"45s"}` | Request timeout for data plane routes |
-| data-plane.gatewayApiOidc | object | `{"route":{"matches":[{"path":{"type":"RegularExpression","value":"/(.well-known/openid-configuration|.well-known/jwks)"}}]}}` | Gateway API HTTPRoute for OIDC endpoints (built-in OIDC provider) |
-| data-plane.image | object | `{"repository":"ghcr.io/stellwerk-labs/platform-orchestrator-dp","tag":"v2.0.0"}` | Container image for the data plane |
+| data-plane.gatewayApi | object | `{"route":{}}` | Gateway API HTTPRoute configuration (created when global Gateway API is enabled) |
+| data-plane.gatewayApiOidc | object | `{"route":{}}` | Gateway API HTTPRoute for OIDC provider (created when global Gateway API is enabled) |
+| data-plane.image | object | `{"repository":"ghcr.io/stellwerk-labs/platform-orchestrator-dp","tag":"v3.0.0"}` | Container image for the data plane |
 | data-plane.image.pullPolicy | string | `"IfNotPresent"` | Image pull policy |
 | data-plane.image.repository | string | `"ghcr.io/stellwerk-labs/platform-orchestrator-dp"` | Image repository. Prepend repository hostname and path as per your setup, e.g. `my-registry.example.com/orchestrator/platform-orchestrator-dp` |
-| data-plane.image.tag | string | `"v2.0.0"` | Image tag |
+| data-plane.image.tag | string | `"v3.0.0"` | Image tag |
 | data-plane.nodeSelector | object | `{}` | Node selector constraints |
 | data-plane.otel | object | `{"enabled":false,"env":"production"}` | OpenTelemetry configuration |
 | data-plane.otel.enabled | bool | `false` | Enable OpenTelemetry instrumentation |
@@ -166,8 +172,8 @@ issuance, rotation, and revocation process.
 | data-plane.service.createHeadless | bool | `true` | Create a headless service (required for internal data plane communication) |
 | data-plane.service.port | int | `8080` | Service port |
 | data-plane.service.type | string | `"ClusterIP"` | Service type |
-| data-plane.serviceAccount | object | `{"allowCreateToken":true}` | Service account configuration |
-| data-plane.serviceAccount.allowCreateToken | bool | `true` | Allow the service account to create tokens (needed for Vault auth) |
+| data-plane.serviceAccount | object | `{"allowCreateToken":false,"annotations":{},"create":true,"name":""}` | Service account configuration |
+| data-plane.serviceAccount.allowCreateToken | bool | `false` | Allow the service account to create tokens (needed for Vault auth) |
 | data-plane.serviceAccount.annotations | object | `{}` | Annotations to add to the service account |
 | data-plane.serviceAccount.create | bool | `true` | Create a dedicated service account |
 | data-plane.serviceAccount.name | string | `""` | Override the service account name (defaults to fullname) |
@@ -312,6 +318,13 @@ issuance, rotation, and revocation process.
 | messagingBootstrap.maxBytes.runnerLogs | string | `"2147483648"` |  |
 | messagingBootstrap.replicas | int | `1` |  |
 | nats | object | `{"config":{"jetstream":{"enabled":true,"fileStore":{"enabled":true,"pvc":{"enabled":true,"size":"10Gi"}}},"merge":{"authorization":{"token":"<< $NATS_AUTH_TOKEN >>"}}},"container":{"env":{"NATS_AUTH_TOKEN":{"valueFrom":{"secretKeyRef":{"key":"natsAuthToken","name":"platform-orchestrator-secrets"}}}},"resources":{"limits":{"cpu":"1","memory":"1Gi"},"requests":{"cpu":"100m","memory":"256Mi"}}},"enabled":true}` | Official NATS subchart. Disable it when using an external NATS service. |
+| runnerGateway | object | `{"enabled":true,"gatewayApi":{"route":{"matches":[{"path":{"type":"RegularExpression","value":"/orgs/[^/]+/(deployments|last-deployments|active-resources|metadata-keys)($|/.*)"}}],"timeouts":{"request":"45s"}}},"gatewayApiOidc":{"route":{"matches":[{"path":{"type":"RegularExpression","value":"/(.well-known/openid-configuration|.well-known/jwks)"}}]}},"image":{"pullPolicy":"IfNotPresent","repository":"ghcr.io/stellwerk-labs/platform-orchestrator-runner","tag":"v3.0.0"},"replicaCount":2,"resources":{"limits":{"cpu":"500m","memory":"256Mi"},"requests":{"cpu":"50m","memory":"64Mi"}},"service":{"port":8080},"serviceAccount":{"allowCreateToken":true}}` | --------------------------------------------------------------------------- The gateway is the only runner-facing component. It translates the public HTTPS protocol into the internal JetStream streams and object stores. |
+| runnerGateway.gatewayApi | object | `{"route":{"matches":[{"path":{"type":"RegularExpression","value":"/orgs/[^/]+/(deployments|last-deployments|active-resources|metadata-keys)($|/.*)"}}],"timeouts":{"request":"45s"}}}` | Gateway API HTTPRoute configuration for the data plane |
+| runnerGateway.gatewayApi.route.matches | list | `[{"path":{"type":"RegularExpression","value":"/orgs/[^/]+/(deployments|last-deployments|active-resources|metadata-keys)($|/.*)"}}]` | Path matching rules for data plane API endpoints |
+| runnerGateway.gatewayApi.route.timeouts | object | `{"request":"45s"}` | Request timeout for data plane routes |
+| runnerGateway.gatewayApiOidc | object | `{"route":{"matches":[{"path":{"type":"RegularExpression","value":"/(.well-known/openid-configuration|.well-known/jwks)"}}]}}` | Gateway API HTTPRoute for OIDC endpoints (built-in OIDC provider) |
+| runnerGateway.serviceAccount | object | `{"allowCreateToken":true}` | Service account configuration |
+| runnerGateway.serviceAccount.allowCreateToken | bool | `true` | Allow the service account to create tokens (needed for Vault auth) |
 | spicedb | object | `{"enabled":true}` | SpiceDB subchart (authorization engine) |
 | spicedb.enabled | bool | `true` | Enable the in-cluster SpiceDB |
 | spicedb.initContainer | object | `{"image":"bitnami/kubectl:latest"}` | Init container configuration for creating the secret |
@@ -380,4 +393,4 @@ All secrets are **auto-generated** by the chart (or its subcharts) on first inst
 | `spicedb-cluster-config` | `preshared_key`, `datastore_uri` | spicedb | SpiceDB, IAM |
 | `keycloak-bootstrap-admin` | `username`, `password` | keycloak | Keycloak |
 | `keycloak-client-secret` | `clientSecret` | keycloak | Keycloak, IAM |
-| `platform-orchestrator-secrets` | `natsAuthToken`, `runnerTokenSalt`, `ssoStateSecret`, `superUserToken` | parent chart | NATS, Control Plane, Data Plane, IAM |
+| `platform-orchestrator-secrets` | `natsAuthToken`, `runnerTokenSalt`, `runnerGatewayReceiptKey`, `ssoStateSecret`, `superUserToken` | parent chart | Internal messaging, runner gateway, Control Plane, Data Plane, IAM |

@@ -22,3 +22,5 @@ jobs:
         uses: helm/chart-testing-action@v2.8.0
       - name: Run chart-testing (lint)
         run: ct lint --all --config .ct.yaml
+      - name: Test runner gateway contract
+        run: bash scripts/runner-gateway_test.sh

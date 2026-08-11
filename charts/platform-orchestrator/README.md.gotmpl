@@ -2,8 +2,8 @@
 
 {{ template "chart.description" . }}
 
-Chart `0.2.0` is a breaking, atomic migration from RabbitMQ and direct runner
-HTTP calls to NATS JetStream. Do not mix `v1` and `v2` services or runners.
+Chart `0.3.0` keeps NATS JetStream internal and exposes the stateless HTTPS
+runner gateway. Do not mix `v2` data-plane/runner images with `v3` images.
 
 ## Architecture
 
@@ -17,6 +17,7 @@ The chart deploys the following components:
 | **Console** | `console` | Web-based UI |
 | **PostgreSQL** | `cnpg-databases` | CloudNativePG-managed PostgreSQL cluster |
 | **NATS JetStream** | `nats` | Durable command and event broker |
+| **Runner gateway** | runner image | Outbound HTTPS interface for agents and deployment Jobs |
 | **SpiceDB** | `spicedb` | Zanzibar-inspired authorization engine |
 | **Keycloak** | `keycloak` | Identity provider and SSO |
 
@@ -39,8 +40,14 @@ helm install platform-orchestrator ./charts/platform-orchestrator \
 ```
 
 The generated shared NATS token is for local bootstrap. Production deployments
-must supply per-service and per-runner subject-scoped credentials with a defined
-issuance, rotation, and revocation process.
+should supply scoped internal service credentials with a defined issuance,
+rotation, and revocation process. Runners receive only HTTPS credentials.
+
+Set `data-plane.config.RUNNER_GATEWAY_URL` to the public HTTPS URL that ECS and
+other runners outside the cluster can reach. Keep
+`RUNNER_GATEWAY_INTERNAL_URL` on the cluster-local gateway Service for
+Kubernetes Jobs created inside this cluster. When the API hostname changes,
+update the public runner gateway URL with it.
 
 {{ template "chart.valuesSection" . }}
 
@@ -106,4 +113,4 @@ All secrets are **auto-generated** by the chart (or its subcharts) on first inst
 | `spicedb-cluster-config` | `preshared_key`, `datastore_uri` | spicedb | SpiceDB, IAM |
 | `keycloak-bootstrap-admin` | `username`, `password` | keycloak | Keycloak |
 | `keycloak-client-secret` | `clientSecret` | keycloak | Keycloak, IAM |
-| `platform-orchestrator-secrets` | `natsAuthToken`, `runnerTokenSalt`, `ssoStateSecret`, `superUserToken` | parent chart | NATS, Control Plane, Data Plane, IAM |
+| `platform-orchestrator-secrets` | `natsAuthToken`, `runnerTokenSalt`, `runnerGatewayReceiptKey`, `ssoStateSecret`, `superUserToken` | parent chart | Internal messaging, runner gateway, Control Plane, Data Plane, IAM |

@@ -1,0 +1,130 @@
+{{- if .Values.runnerGateway.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "platform-orchestrator.fullname" . }}-runner-gateway
+  labels:
+    {{- include "platform-orchestrator.labels" . | nindent 4 }}
+    app.kubernetes.io/component: runner-gateway
+spec:
+  replicas: {{ .Values.runnerGateway.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "platform-orchestrator.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: runner-gateway
+  template:
+    metadata:
+      labels:
+        {{- include "platform-orchestrator.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: runner-gateway
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: gateway
+          image: "{{ .Values.runnerGateway.image.repository }}:{{ .Values.runnerGateway.image.tag }}"
+          imagePullPolicy: {{ .Values.runnerGateway.image.pullPolicy }}
+          args: ["gateway"]
+          env:
+            - name: NATS_URL
+              value: {{ .Values.global.NATS_URL | quote }}
+            - name: NATS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "platform-orchestrator.fullname" . }}-secrets
+                  key: natsAuthToken
+            - name: CONTROL_PLANE_URL
+              value: "http://{{ include "platform-orchestrator.fullname" . }}-control-plane:8080"
+            - name: RUNNER_TOKEN_SALT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "platform-orchestrator.fullname" . }}-secrets
+                  key: runnerTokenSalt
+            - name: RUNNER_GATEWAY_RECEIPT_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "platform-orchestrator.fullname" . }}-secrets
+                  key: runnerGatewayReceiptKey
+          ports:
+            - name: http
+              containerPort: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: true
+          resources:
+            {{- toYaml .Values.runnerGateway.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /runner-gateway/healthz
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /runner-gateway/healthz
+              port: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "platform-orchestrator.fullname" . }}-runner-gateway
+  labels:
+    {{- include "platform-orchestrator.labels" . | nindent 4 }}
+    app.kubernetes.io/component: runner-gateway
+spec:
+  selector:
+    {{- include "platform-orchestrator.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: runner-gateway
+  ports:
+    - name: http
+      port: {{ .Values.runnerGateway.service.port }}
+      targetPort: http
+{{- if .Values.global.gatewayApi.enabled }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ include "platform-orchestrator.fullname" . }}-runner-gateway
+  labels:
+    {{- include "platform-orchestrator.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+    - name: {{ include "platform-orchestrator.fullname" . }}-backend-gateway
+  hostnames:
+    - {{ .Values.global.gatewayApi.backend.hostname | quote }}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /runner-gateway
+      backendRefs:
+        - name: {{ include "platform-orchestrator.fullname" . }}-runner-gateway
+          port: {{ .Values.runnerGateway.service.port }}
+      timeouts:
+        request: 40s
+{{- if .Values.global.gatewayApi.useEnvoyGateway }}
+---
+# This route authenticates runner JWTs itself. A route-level policy is more
+# specific than the backend Gateway ext-auth policy and deliberately replaces it.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: {{ include "platform-orchestrator.fullname" . }}-runner-gateway
+  labels:
+    {{- include "platform-orchestrator.labels" . | nindent 4 }}
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: {{ include "platform-orchestrator.fullname" . }}-runner-gateway
+  authorization:
+    defaultAction: Allow
+{{- end }}
+{{- end }}
+{{- end }}
