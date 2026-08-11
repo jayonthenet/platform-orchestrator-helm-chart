@@ -1,0 +1,39 @@
+{{- if .Values.messagingBootstrap.enabled }}
+{{- $bootstrapRevision := printf "%v-%v-%v-%v" .Chart.Version .Values.messagingBootstrap.image .Values.messagingBootstrap.replicas .Values.messagingBootstrap.maxBytes | sha256sum | trunc 8 }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "platform-orchestrator.fullname" . }}-nats-bootstrap-{{ $bootstrapRevision }}
+  labels:
+    {{- include "platform-orchestrator.labels" . | nindent 4 }}
+spec:
+  backoffLimit: 10
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      labels:
+        {{- include "platform-orchestrator.selectorLabels" . | nindent 8 }}
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: bootstrap
+          image: {{ .Values.messagingBootstrap.image | quote }}
+          env:
+            - name: NATS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "platform-orchestrator.fullname" . }}-secrets
+                  key: natsAuthToken
+          command: ["sh", "-ec"]
+          args:
+            - |
+              server={{ .Values.global.config.NATS_URL | quote }}
+              auth="--server=$server --token=$NATS_TOKEN"
+              until nats $auth server ping --count=1; do sleep 2; done
+              nats $auth stream add PO_EVENTS --subjects='io.platform-orchestrator.>' --retention=limits --storage=file --replicas={{ .Values.messagingBootstrap.replicas }} --max-age=720h --max-bytes={{ .Values.messagingBootstrap.maxBytes.events }} --dupe-window=10m --allow-msg-ttl --defaults || nats $auth stream edit PO_EVENTS --subjects='io.platform-orchestrator.>' --max-age=720h --max-bytes={{ .Values.messagingBootstrap.maxBytes.events }} --dupe-window=10m --allow-msg-ttl --force
+              nats $auth stream add PO_RUNNER_COMMANDS --subjects='po.v1.orgs.*.runners.*.commands' --retention=work --storage=file --replicas={{ .Values.messagingBootstrap.replicas }} --max-age=720h --max-bytes={{ .Values.messagingBootstrap.maxBytes.runnerCommands }} --dupe-window=10m --allow-msg-ttl --defaults || nats $auth stream edit PO_RUNNER_COMMANDS --subjects='po.v1.orgs.*.runners.*.commands' --max-age=720h --max-bytes={{ .Values.messagingBootstrap.maxBytes.runnerCommands }} --dupe-window=10m --allow-msg-ttl --force
+              nats $auth stream add PO_RUNNER_EVENTS --subjects='po.v1.orgs.*.runners.*.events.>' --retention=limits --storage=file --replicas={{ .Values.messagingBootstrap.replicas }} --max-age=720h --max-bytes={{ .Values.messagingBootstrap.maxBytes.runnerEvents }} --dupe-window=10m --allow-msg-ttl --defaults || nats $auth stream edit PO_RUNNER_EVENTS --subjects='po.v1.orgs.*.runners.*.events.>' --max-age=720h --max-bytes={{ .Values.messagingBootstrap.maxBytes.runnerEvents }} --dupe-window=10m --allow-msg-ttl --force
+              nats $auth stream add PO_DEAD_LETTERS --subjects='po.dlq.>' --retention=limits --storage=file --replicas={{ .Values.messagingBootstrap.replicas }} --max-age=2160h --max-bytes={{ .Values.messagingBootstrap.maxBytes.deadLetters }} --dupe-window=10m --allow-msg-ttl --defaults || nats $auth stream edit PO_DEAD_LETTERS --subjects='po.dlq.>' --max-age=2160h --max-bytes={{ .Values.messagingBootstrap.maxBytes.deadLetters }} --dupe-window=10m --allow-msg-ttl --force
+              nats $auth object add PO_RUNNER_LOGS --storage=file --replicas={{ .Values.messagingBootstrap.replicas }} --ttl=720h --max-bucket-size={{ .Values.messagingBootstrap.maxBytes.runnerLogs }} || nats $auth object edit PO_RUNNER_LOGS --replicas={{ .Values.messagingBootstrap.replicas }} --ttl=720h --max-bucket-size={{ .Values.messagingBootstrap.maxBytes.runnerLogs }}
+              nats $auth object add PO_RUNNER_BUNDLES --storage=file --replicas={{ .Values.messagingBootstrap.replicas }} --ttl=744h --max-bucket-size={{ .Values.messagingBootstrap.maxBytes.runnerBundles }} || nats $auth object edit PO_RUNNER_BUNDLES --replicas={{ .Values.messagingBootstrap.replicas }} --ttl=744h --max-bucket-size={{ .Values.messagingBootstrap.maxBytes.runnerBundles }}
+{{- end }}

@@ -2,6 +2,9 @@
 
 {{ template "chart.description" . }}
 
+Chart `0.2.0` is a breaking, atomic migration from RabbitMQ and direct runner
+HTTP calls to NATS JetStream. Do not mix `v1` and `v2` services or runners.
+
 ## Architecture
 
 The chart deploys the following components:
@@ -13,8 +16,7 @@ The chart deploys the following components:
 | **IAM** | `backend-module` (alias) | Authentication, authorization, SSO, and user management |
 | **Console** | `console` | Web-based UI |
 | **PostgreSQL** | `cnpg-databases` | CloudNativePG-managed PostgreSQL cluster |
-| **RabbitMQ** | `rabbitmq` | AMQP message broker |
-| **SeaweedFS** | `seaweed` | S3-compatible object storage for runner logs |
+| **NATS JetStream** | `nats` | Durable command and event broker |
 | **SpiceDB** | `spicedb` | Zanzibar-inspired authorization engine |
 | **Keycloak** | `keycloak` | Identity provider and SSO |
 
@@ -25,7 +27,6 @@ The chart deploys the following components:
 - [cert-manager](https://cert-manager.io/) (for TLS certificates)
 - [Gateway API CRDs](https://gateway-api.sigs.k8s.io/) and a gateway controller (e.g., Envoy Gateway)
 - [CloudNativePG Operator](https://cloudnative-pg.io/) (if using the in-cluster PostgreSQL)
-- [RabbitMQ Cluster Operator](https://www.rabbitmq.com/kubernetes/operator/operator-overview) (if using the in-cluster RabbitMQ)
 - OpenBao (external dependency, Vault-compatible)
 
 ## Installation
@@ -36,6 +37,10 @@ helm install platform-orchestrator ./charts/platform-orchestrator \
   --create-namespace \
   -f my-values.yaml
 ```
+
+The generated shared NATS token is for local bootstrap. Production deployments
+must supply per-service and per-runner subject-scoped credentials with a defined
+issuance, rotation, and revocation process.
 
 {{ template "chart.valuesSection" . }}
 
@@ -55,8 +60,7 @@ file. The tables below document the **default** configuration.
 |---------|---------------------|------------|-------------|
 | `DATABASE_USER` | `controlplane-db-secret` | `username` | PostgreSQL username |
 | `DATABASE_PASSWORD` | `controlplane-db-secret` | `password` | PostgreSQL password |
-| `AMQP_USERNAME` | `platform-orchestrator-rabbitmq-platform-user-credentials` | `username` | RabbitMQ username |
-| `AMQP_PASSWORD` | `platform-orchestrator-rabbitmq-platform-user-credentials` | `password` | RabbitMQ password |
+| `NATS_TOKEN` | `platform-orchestrator-secrets` | `natsAuthToken` | NATS authentication token |
 
 ### Data Plane (`data-plane.env`)
 
@@ -64,10 +68,8 @@ file. The tables below document the **default** configuration.
 |---------|---------------------|------------|-------------|
 | `DATABASE_USER` | `dataplane-db-secret` | `username` | PostgreSQL username |
 | `DATABASE_PASSWORD` | `dataplane-db-secret` | `password` | PostgreSQL password |
-| `AMQP_USERNAME` | `platform-orchestrator-rabbitmq-platform-user-credentials` | `username` | RabbitMQ username |
-| `AMQP_PASSWORD` | `platform-orchestrator-rabbitmq-platform-user-credentials` | `password` | RabbitMQ password |
+| `NATS_TOKEN` | `platform-orchestrator-secrets` | `natsAuthToken` | NATS authentication token |
 | `RUNNER_TOKEN_SALT` | `platform-orchestrator-secrets` | `runnerTokenSalt` | Salt for runner authentication tokens |
-| `RUNNER_LOGS_BUCKET_CREDS` | `platform-orchestrator-s3-admin-credentials` | `credentials_json` | S3 credentials for runner log storage |
 
 ### IAM (`iam.env`)
 
@@ -75,8 +77,7 @@ file. The tables below document the **default** configuration.
 |---------|---------------------|------------|-------------|
 | `DATABASE_USER` | `iam-db-secret` | `username` | PostgreSQL username |
 | `DATABASE_PASSWORD` | `iam-db-secret` | `password` | PostgreSQL password |
-| `AMQP_USERNAME` | `platform-orchestrator-rabbitmq-platform-user-credentials` | `username` | RabbitMQ username |
-| `AMQP_PASSWORD` | `platform-orchestrator-rabbitmq-platform-user-credentials` | `password` | RabbitMQ password |
+| `NATS_TOKEN` | `platform-orchestrator-secrets` | `natsAuthToken` | NATS authentication token |
 | `SPICEDB_PRE_SHARED_KEY` | `spicedb-cluster-config` | `preshared_key` | SpiceDB pre-shared authentication key |
 | `KEYCLOAK_CLIENT_SECRET` | `keycloak-client-secret` | `clientSecret` | Keycloak OIDC client secret |
 | `SENDGRID_API_KEY` | | | SendGrid API key to enable email invitations (disabled by default) |
@@ -105,7 +106,4 @@ All secrets are **auto-generated** by the chart (or its subcharts) on first inst
 | `spicedb-cluster-config` | `preshared_key`, `datastore_uri` | spicedb | SpiceDB, IAM |
 | `keycloak-bootstrap-admin` | `username`, `password` | keycloak | Keycloak |
 | `keycloak-client-secret` | `clientSecret` | keycloak | Keycloak, IAM |
-| `platform-orchestrator-rabbitmq-platform-user-credentials` | `username`, `password` | RabbitMQ Operator (via User CRD) | Control Plane, Data Plane, IAM |
-| `platform-orchestrator-s3-admin-credentials` | `access_key_id`, `secret_access_key`, `credentials_json` | seaweed | Data Plane |
-| `s3-secret` | `config` | seaweed | SeaweedFS Filer |
-| `platform-orchestrator-secrets` | `runnerTokenSalt`, `ssoStateSecret`, `superUserToken` | parent chart | Data Plane, IAM |
+| `platform-orchestrator-secrets` | `natsAuthToken`, `runnerTokenSalt`, `ssoStateSecret`, `superUserToken` | parent chart | NATS, Control Plane, Data Plane, IAM |

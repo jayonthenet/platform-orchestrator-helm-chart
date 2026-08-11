@@ -5,12 +5,13 @@ environments:
   local:
     values:
       - envs/local/state-values.yaml
+  production:
+    values:
+      - envs/production/state-values.yaml
 ---
 repositories:
   - name: cnpg
     url: https://cloudnative-pg.github.io/charts
-  - name: seaweedfs-operator
-    url: https://seaweedfs.github.io/seaweedfs-operator
   - name: openbao
     url: https://openbao.github.io/openbao-helm
   - name: opentelemetry-operator
@@ -46,17 +47,6 @@ releases:
     wait: true
     timeout: 600
 
-  - name: seaweedfs-operator
-    namespace: seaweedfs-operator-system
-    createNamespace: true
-    chart: seaweedfs-operator/seaweedfs-operator
-    version: "0.1.11"
-    installed: {{ .StateValues.installSeaweed }}
-    wait: true
-    timeout: 300
-    values:
-      - {{ .StateValues.seaweedfsOperatorValues | toYaml | nindent 8 }}
-
   - name: cert-manager
     namespace: cert-manager
     createNamespace: true
@@ -68,18 +58,6 @@ releases:
     set:
       - name: crds.enabled
         value: true
-
-  - name: rabbitmq-cluster-operator
-    namespace: rabbitmq-system
-    createNamespace: true
-    chart: ./charts/rabbitmq-cluster-operator
-    installed: {{ .StateValues.installRabbitMQ }}
-    wait: true
-    timeout: 600
-    needs:
-    {{- if .StateValues.installCertManager }}
-      - cert-manager/cert-manager
-    {{- end }}
 
   - name: spicedb-operator
     namespace: spicedb-operator
@@ -165,9 +143,6 @@ releases:
       {{- end }}
       {{- if .StateValues.installPostgres }}
       - cnpg-system/cnpg
-      {{- end }}
-      {{- if .StateValues.installRabbitMQ }}
-      - rabbitmq-system/rabbitmq-cluster-operator
       {{- end }}
       {{- if .StateValues.installSpiceDB }}
       - spicedb-operator/spicedb-operator

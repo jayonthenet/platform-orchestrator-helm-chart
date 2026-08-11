@@ -24,6 +24,9 @@ jobs:
       - name: Set up Helm
         uses: azure/setup-helm@v5
 
+      - name: Add NATS chart repository
+        run: helm repo add nats https://nats-io.github.io/k8s/helm/charts/
+
       - name: Validate selected release tag and chart version
         id: chart
         shell: bash
@@ -61,7 +64,9 @@ jobs:
           set -euo pipefail
           chart="dist/platform-orchestrator-${{ steps.chart.outputs.chart_version }}.tgz"
           helm push "$chart" oci://ghcr.io/stellwerk-labs/charts
+          notes="docs/releases/${{ steps.chart.outputs.release_tag }}.md"
+          test -f "$notes"
           gh release create "${{ steps.chart.outputs.release_tag }}" "$chart" \
             --repo "$GITHUB_REPOSITORY" \
             --verify-tag \
-            --generate-notes
+            --notes-file "$notes"
