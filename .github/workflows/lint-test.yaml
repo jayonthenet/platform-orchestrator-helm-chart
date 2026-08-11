@@ -15,7 +15,7 @@ jobs:
         uses: azure/setup-helm@v5
       - name: Add NATS chart repository
         run: helm repo add nats https://nats-io.github.io/k8s/helm/charts/
-      - uses: actions/setup-python@v6.0.0
+      - uses: actions/setup-python@v7.0.0
         with:
           python-version: '3.x'
       - name: Set up chart-testing
