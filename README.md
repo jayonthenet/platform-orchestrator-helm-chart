@@ -68,6 +68,10 @@ The chart-generated NATS token is intended for local bootstrap. Before a
 production rollout, provision per-service and per-runner subject-scoped NATS
 credentials and establish rotation and revocation procedures.
 
+Upgrades from a SpiceDB-based release must follow the
+[SpiceDB-to-Casbin migration procedure](docs/migrations/spicedb-to-casbin.md)
+before IAM replicas are started on the new image.
+
 ## Releasing the OCI chart
 
 Chart publication is deliberately manual. Updating a component image does not

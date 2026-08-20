@@ -570,6 +570,26 @@ global:
             kind: Secret
 
   # ---------------------------------------------------------------------------
+  # Legacy SpiceDB rollback data
+  # ---------------------------------------------------------------------------
+  legacySpiceDB:
+    # -- Preserve and manage the former SpiceDB database, owner, and credentials during the Casbin rollback window. Setting this to false leaves kept resources orphaned for explicit cleanup.
+    preserveDatabase: true
+    database:
+      # -- Legacy SpiceDB PostgreSQL host
+      host: platform-orchestrator-cnpg-databases
+      # -- Legacy SpiceDB PostgreSQL port
+      port: "5432"
+      # -- Legacy SpiceDB database name
+      name: orchestrator-spicedb
+      # -- Legacy SpiceDB database owner
+      owner: spicedb_user
+      # -- Secret holding the legacy database password
+      passwordSecretName: spicedb-db-secret
+      # -- Password key in the legacy database secret
+      passwordSecretKey: password
+
+  # ---------------------------------------------------------------------------
   # Keycloak Configuration
   # ---------------------------------------------------------------------------
   keycloak:

@@ -13,6 +13,25 @@ spec:
     name: {{ include "cnpg-databases.fullname" $ }}
 {{- end }}
 
+{{- if .Values.global.legacySpiceDB.preserveDatabase }}
+{{- with .Values.global.legacySpiceDB.database }}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: {{ include "cnpg-databases.fullname" $ }}-{{ .name }}
+  labels:
+    {{- include "cnpg-databases.labels" $ | nindent 4 }}
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  name: {{ .name }}
+  owner: {{ .owner }}
+  cluster:
+    name: {{ include "cnpg-databases.fullname" $ }}
+{{- end }}
+{{- end }}
+
 {{- with .Values.global.keycloak.database }}
 ---
 apiVersion: postgresql.cnpg.io/v1
