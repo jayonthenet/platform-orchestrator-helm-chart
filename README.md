@@ -18,7 +18,6 @@ infrastructure) that it depends on.
 | `gatewayclass` | [charts/gatewayclass](charts/gatewayclass) | Local | GatewayClass resource for Envoy Gateway |
 | `cnpg` | `cnpg/cloudnative-pg` | External | CloudNativePG operator for PostgreSQL |
 | `cert-manager` | `oci://quay.io/jetstack/charts/cert-manager` | External | TLS certificate management |
-| `spicedb-operator` | [charts/spicedb-operator](charts/spicedb-operator) | Local | SpiceDB operator |
 | `keycloak-operator` | [charts/keycloak-operator](charts/keycloak-operator) | Local | Keycloak operator |
 | `openbao` | `openbao/openbao` | External | OpenBao (Vault-compatible secret store) |
 | `cluster-issuer` | [charts/cluster-issuer](charts/cluster-issuer) | Local | cert-manager ClusterIssuer resource |

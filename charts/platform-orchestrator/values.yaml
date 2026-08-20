@@ -9,7 +9,7 @@
 #   - Console (frontend)
 #   - CNPG Databases (PostgreSQL via CloudNativePG)
 #   - NATS JetStream (durable message broker)
-#   - SpiceDB (authorization)
+#   - Embedded Casbin RBAC in IAM (authorization)
 #   - Keycloak (identity provider)
 # =============================================================================
 
@@ -237,8 +237,6 @@ iam:
     DATABASE_PORT: "5432"
     # -- PostgreSQL host (should match the CNPG cluster service name)
     DATABASE_HOST: platform-orchestrator-cnpg-databases
-    # -- SpiceDB gRPC endpoint for authorization
-    SPICEDB_URL: "platform-orchestrator-spicedb:50051"
     # -- NATS endpoint used for durable identity events
     NATS_URL: "nats://platform-orchestrator-nats:4222"
     # -- OpenTelemetry collector endpoint
@@ -262,11 +260,6 @@ iam:
         secretKeyRef:
           name: platform-orchestrator-secrets
           key: natsAuthToken
-    - name: SPICEDB_PRE_SHARED_KEY
-      valueFrom:
-        secretKeyRef:
-          name: spicedb-cluster-config
-          key: preshared_key
     - name: KEYCLOAK_CLIENT_SECRET
       valueFrom:
         secretKeyRef:
@@ -379,11 +372,6 @@ messagingBootstrap:
     deadLetters: "536870912"
     runnerLogs: "2147483648"
     runnerBundles: "3221225472"
-
-# -- SpiceDB subchart (authorization engine)
-spicedb:
-  # -- Enable the in-cluster SpiceDB
-  enabled: true
 
 # -- Keycloak subchart (identity provider)
 keycloak:
@@ -580,24 +568,6 @@ global:
         certificateRefs:
           - name: keycloak-platform-orchestrator-cert
             kind: Secret
-
-  # ---------------------------------------------------------------------------
-  # SpiceDB Configuration
-  # ---------------------------------------------------------------------------
-  spicedb:
-    database:
-      # -- PostgreSQL host for SpiceDB
-      host: platform-orchestrator-cnpg-databases
-      # -- PostgreSQL port for SpiceDB
-      port: "5432"
-      # -- Database name for SpiceDB
-      name: orchestrator-spicedb
-      # -- Database owner/user for SpiceDB
-      owner: spicedb_user
-      # -- Secret name containing the SpiceDB database password
-      passwordSecretName: spicedb-db-secret
-      # -- Key within the secret containing the password
-      passwordSecretKey: password
 
   # ---------------------------------------------------------------------------
   # Keycloak Configuration

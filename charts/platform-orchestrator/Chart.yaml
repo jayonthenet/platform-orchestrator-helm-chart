@@ -27,9 +27,6 @@ dependencies:
     version: "2.14.0"
     repository: "https://nats-io.github.io/k8s/helm/charts/"
     condition: nats.enabled
-  - name: spicedb
-    version: "0.1.0"
-    condition: spicedb.enabled
   - name: keycloak
     version: "0.1.0"
     condition: keycloak.enabled

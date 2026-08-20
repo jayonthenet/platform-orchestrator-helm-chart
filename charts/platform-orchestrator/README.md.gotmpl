@@ -18,7 +18,6 @@ The chart deploys the following components:
 | **PostgreSQL** | `cnpg-databases` | CloudNativePG-managed PostgreSQL cluster |
 | **NATS JetStream** | `nats` | Durable command and event broker |
 | **Runner gateway** | runner image | Outbound HTTPS interface for agents and deployment Jobs |
-| **SpiceDB** | `spicedb` | Zanzibar-inspired authorization engine |
 | **Keycloak** | `keycloak` | Identity provider and SSO |
 
 ## Prerequisites
@@ -85,7 +84,6 @@ file. The tables below document the **default** configuration.
 | `DATABASE_USER` | `iam-db-secret` | `username` | PostgreSQL username |
 | `DATABASE_PASSWORD` | `iam-db-secret` | `password` | PostgreSQL password |
 | `NATS_TOKEN` | `platform-orchestrator-secrets` | `natsAuthToken` | NATS authentication token |
-| `SPICEDB_PRE_SHARED_KEY` | `spicedb-cluster-config` | `preshared_key` | SpiceDB pre-shared authentication key |
 | `KEYCLOAK_CLIENT_SECRET` | `keycloak-client-secret` | `clientSecret` | Keycloak OIDC client secret |
 | `SENDGRID_API_KEY` | | | SendGrid API key to enable email invitations (disabled by default) |
 | `SSO_STATE_SECRET` | `platform-orchestrator-secrets` | `ssoStateSecret` | Secret for SSO state parameter signing |
@@ -108,9 +106,7 @@ All secrets are **auto-generated** by the chart (or its subcharts) on first inst
 | `controlplane-db-secret` | `username`, `password` | cnpg-databases | Control Plane |
 | `dataplane-db-secret` | `username`, `password` | cnpg-databases | Data Plane |
 | `iam-db-secret` | `username`, `password` | cnpg-databases | IAM |
-| `spicedb-db-secret` | `username`, `password` | cnpg-databases | SpiceDB |
 | `keycloak-db-secret` | `username`, `password` | cnpg-databases | Keycloak |
-| `spicedb-cluster-config` | `preshared_key`, `datastore_uri` | spicedb | SpiceDB, IAM |
 | `keycloak-bootstrap-admin` | `username`, `password` | keycloak | Keycloak |
 | `keycloak-client-secret` | `clientSecret` | keycloak | Keycloak, IAM |
 | `platform-orchestrator-secrets` | `natsAuthToken`, `runnerTokenSalt`, `runnerGatewayReceiptKey`, `ssoStateSecret`, `superUserToken` | parent chart | Internal messaging, runner gateway, Control Plane, Data Plane, IAM |

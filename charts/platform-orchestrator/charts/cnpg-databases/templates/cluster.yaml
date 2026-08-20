@@ -31,16 +31,6 @@ spec:
         passwordSecret:
           name: {{ .passwordSecretName }}
       {{- end }}
-      {{- with .Values.global.spicedb.database }}
-      - name: {{ .owner }}
-        ensure: present
-        comment: "User for {{ .name }} database"
-        login: true
-        createdb: false
-        superuser: false
-        passwordSecret:
-          name: {{ .passwordSecretName }}
-      {{- end }}
       {{- with .Values.global.keycloak.database }}
       - name: {{ .owner }}
         ensure: present

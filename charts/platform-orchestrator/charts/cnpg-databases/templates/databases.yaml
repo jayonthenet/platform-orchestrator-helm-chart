@@ -13,21 +13,6 @@ spec:
     name: {{ include "cnpg-databases.fullname" $ }}
 {{- end }}
 
-{{- with .Values.global.spicedb.database }}
----
-apiVersion: postgresql.cnpg.io/v1
-kind: Database
-metadata:
-  name: {{ include "cnpg-databases.fullname" $ }}-{{ .name }}
-  labels:
-    {{- include "cnpg-databases.labels" $ | nindent 4 }}
-spec:
-  name: {{ .name }}
-  owner: {{ .owner }}
-  cluster:
-    name: {{ include "cnpg-databases.fullname" $ }}
-{{- end }}
-
 {{- with .Values.global.keycloak.database }}
 ---
 apiVersion: postgresql.cnpg.io/v1

@@ -4,8 +4,6 @@ installPostgres: true
 
 installCertManager: true
 
-installSpiceDB: true
-
 installKeycloak: true
 
 installOpenTelemetry: true
