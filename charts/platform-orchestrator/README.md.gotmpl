@@ -2,8 +2,9 @@
 
 {{ template "chart.description" . }}
 
-Chart `0.3.0` keeps NATS JetStream internal and exposes the stateless HTTPS
-runner gateway. Do not mix `v2` data-plane/runner images with `v3` images.
+Chart `0.4.0` embeds Casbin RBAC in IAM and automatically upgrades supported
+SpiceDB-based installations. It retains the stateless HTTPS runner gateway and
+internal NATS JetStream architecture from `0.3.0`.
 
 ## Architecture
 
@@ -37,6 +38,12 @@ helm install platform-orchestrator ./charts/platform-orchestrator \
   --create-namespace \
   -f my-values.yaml
 ```
+
+Upgrading from a SpiceDB-based installation causes a short IAM outage. The IAM
+Deployment uses `Recreate`, and its first replacement Pod serializes, resumes,
+and verifies the database migration before becoming ready. Back up PostgreSQL
+and read the [upgrade procedure](../../docs/migrations/spicedb-to-casbin.md)
+before upgrading to `0.4.0`.
 
 The generated shared NATS token is for local bootstrap. Production deployments
 should supply scoped internal service credentials with a defined issuance,

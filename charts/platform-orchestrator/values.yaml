@@ -214,12 +214,17 @@ runnerGateway:
 # The IAM service handles authentication, authorization, SSO, user management,
 # and role-based access control. It is deployed as a backend-module subchart.
 iam:
+  # -- Replace all IAM pods before starting the new version. This prevents old
+  # SpiceDB and new Casbin binaries from sharing the database during upgrades.
+  strategy:
+    type: Recreate
+
   # -- Container image for IAM
   image:
     # -- Image repository. Prepend repository hostname and path as per your setup, e.g. `my-registry.example.com/orchestrator/platform-orchestrator-iam`
     repository: ghcr.io/stellwerk-labs/platform-orchestrator-iam
     # -- Image tag
-    tag: v2.0.0
+    tag: v2.1.0
 
   # -- Configuration environment variables (injected via ConfigMap)
   config:
