@@ -310,7 +310,7 @@ console:
     # -- Image repository. Prepend repository hostname and path as per your setup, e.g. `my-registry.example.com/orchestrator/platform-orchestrator-frontend`
     repository: ghcr.io/stellwerk-labs/platform-orchestrator-frontend
     # -- Image tag
-    tag: v1.0.2
+    tag: v1.1.0
 
   # -- Configuration environment variables (injected via ConfigMap)
   config:

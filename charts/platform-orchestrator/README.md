@@ -2,9 +2,10 @@
 
 Platform Orchestrator
 
-Chart `0.4.0` embeds Casbin RBAC in IAM and automatically upgrades supported
-SpiceDB-based installations. It retains the stateless HTTPS runner gateway and
-internal NATS JetStream architecture from `0.3.0`.
+Chart `0.4.1` completes configurable Casbin RBAC with console-based role
+management and automatically upgrades supported SpiceDB-based installations.
+It retains the stateless HTTPS runner gateway and internal NATS JetStream
+architecture from `0.3.0`.
 
 ## Architecture
 
@@ -43,7 +44,7 @@ Upgrading from a SpiceDB-based installation causes a short IAM outage. The IAM
 Deployment uses `Recreate`, and its first replacement Pod serializes, resumes,
 and verifies the database migration before becoming ready. Back up PostgreSQL
 and read the [upgrade procedure](../../docs/migrations/spicedb-to-casbin.md)
-before upgrading to `0.4.0`.
+before upgrading from a SpiceDB-based release.
 
 The generated shared NATS token is for local bootstrap. Production deployments
 should supply scoped internal service credentials with a defined issuance,
@@ -74,7 +75,7 @@ update the public runner gateway URL with it.
 | cnpg-databases.postgresql.logStatement | string | `"all"` | Statement logging level (none, ddl, mod, all) |
 | cnpg-databases.postgresql.maxConnections | string | `"100"` | Maximum number of concurrent connections |
 | cnpg-databases.postgresql.sharedBuffers | string | `"256MB"` | Shared buffer size |
-| console | object | `{"config":{"CONFIG_CAT_SDK_KEY":"","DATADOG_CLIENT_TOKEN":"","DEPLOYMENT_MODE":"self-hosted","GOOGLE_CLIENT_ID":"","MICROSOFT_CLIENT_ID":""},"image":{"repository":"ghcr.io/stellwerk-labs/platform-orchestrator-frontend","tag":"v1.0.2"}}` | --------------------------------------------------------------------------- The web-based UI for the Platform Orchestrator. |
+| console | object | `{"config":{"CONFIG_CAT_SDK_KEY":"","DATADOG_CLIENT_TOKEN":"","DEPLOYMENT_MODE":"self-hosted","GOOGLE_CLIENT_ID":"","MICROSOFT_CLIENT_ID":""},"image":{"repository":"ghcr.io/stellwerk-labs/platform-orchestrator-frontend","tag":"v1.1.0"}}` | --------------------------------------------------------------------------- The web-based UI for the Platform Orchestrator. |
 | console.affinity | object | `{}` | Pod affinity rules |
 | console.config | object | `{"CONFIG_CAT_SDK_KEY":"","DATADOG_CLIENT_TOKEN":"","DEPLOYMENT_MODE":"self-hosted","GOOGLE_CLIENT_ID":"","MICROSOFT_CLIENT_ID":""}` | Configuration environment variables (injected via ConfigMap) |
 | console.config.CONFIG_CAT_SDK_KEY | string | `""` | ConfigCat SDK key for feature flags (leave empty to disable) |
@@ -85,10 +86,10 @@ update the public runner gateway URL with it.
 | console.config.MICROSOFT_CLIENT_ID | string | `""` | Microsoft OAuth client ID for social login button (leave empty to hide) |
 | console.envFromSecrets | list | `[]` | Names of secrets to load as environment variables via envFrom |
 | console.gatewayApi | object | `{"route":{"matches":[{"path":{"type":"PathPrefix","value":"/"}}]}}` | Gateway API HTTPRoute configuration (created when global Gateway API is enabled) |
-| console.image | object | `{"repository":"ghcr.io/stellwerk-labs/platform-orchestrator-frontend","tag":"v1.0.2"}` | Container image for the console |
+| console.image | object | `{"repository":"ghcr.io/stellwerk-labs/platform-orchestrator-frontend","tag":"v1.1.0"}` | Container image for the console |
 | console.image.pullPolicy | string | `"IfNotPresent"` | Image pull policy |
 | console.image.repository | string | `"ghcr.io/stellwerk-labs/platform-orchestrator-frontend"` | Image repository. Prepend repository hostname and path as per your setup, e.g. `my-registry.example.com/orchestrator/platform-orchestrator-frontend` |
-| console.image.tag | string | `"v1.0.2"` | Image tag |
+| console.image.tag | string | `"v1.1.0"` | Image tag |
 | console.nodeSelector | object | `{}` | Node selector constraints |
 | console.podAnnotations | object | `{}` | Additional pod annotations |
 | console.podLabels | object | `{}` | Additional pod labels |
