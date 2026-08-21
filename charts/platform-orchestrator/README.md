@@ -2,10 +2,11 @@
 
 Platform Orchestrator
 
-Chart `0.4.1` completes configurable Casbin RBAC with console-based role
+Chart `0.4.2` delivers configurable Casbin RBAC with console-based role
 management and automatically upgrades supported SpiceDB-based installations.
 It retains the stateless HTTPS runner gateway and internal NATS JetStream
-architecture from `0.3.0`.
+architecture from `0.3.0`, with an application-account-safe NATS bootstrap
+probe.
 
 ## Architecture
 

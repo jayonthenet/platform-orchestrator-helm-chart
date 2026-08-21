@@ -31,7 +31,7 @@ installation:
 ```bash
 helm upgrade platform-orchestrator \
   oci://ghcr.io/stellwerk-labs/charts/platform-orchestrator \
-  --version 0.4.1 \
+  --version 0.4.2 \
   --namespace platform-orchestrator \
   --values my-values.yaml \
   --wait \
