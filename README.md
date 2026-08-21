@@ -2,9 +2,9 @@
 
 Helm charts to install and operate Platform Orchestrator in Kubernetes.
 
-Chart `0.3.0` exposes the HTTPS runner gateway while keeping NATS JetStream
-internal. Keep the chart, data plane, and runner image versions from the same
-compatibility set.
+Chart `0.4.0` embeds Casbin RBAC in IAM and automatically upgrades supported
+SpiceDB-based installations. It retains the HTTPS runner gateway and internal
+NATS JetStream architecture introduced in `0.3.0`.
 
 ## Charts
 
@@ -18,7 +18,6 @@ infrastructure) that it depends on.
 | `gatewayclass` | [charts/gatewayclass](charts/gatewayclass) | Local | GatewayClass resource for Envoy Gateway |
 | `cnpg` | `cnpg/cloudnative-pg` | External | CloudNativePG operator for PostgreSQL |
 | `cert-manager` | `oci://quay.io/jetstack/charts/cert-manager` | External | TLS certificate management |
-| `spicedb-operator` | [charts/spicedb-operator](charts/spicedb-operator) | Local | SpiceDB operator |
 | `keycloak-operator` | [charts/keycloak-operator](charts/keycloak-operator) | Local | Keycloak operator |
 | `openbao` | `openbao/openbao` | External | OpenBao (Vault-compatible secret store) |
 | `cluster-issuer` | [charts/cluster-issuer](charts/cluster-issuer) | Local | cert-manager ClusterIssuer resource |
@@ -68,6 +67,11 @@ make deploy
 The chart-generated NATS token is intended for local bootstrap. Before a
 production rollout, provision per-service and per-runner subject-scoped NATS
 credentials and establish rotation and revocation procedures.
+
+Chart `0.4.0` automatically upgrades IAM schema 29 from SpiceDB to Casbin during
+the first replacement Pod's startup. Read the
+[SpiceDB-to-Casbin upgrade notes](docs/migrations/spicedb-to-casbin.md) for the
+required backup, short IAM outage, verification, and rollback procedure.
 
 ## Releasing the OCI chart
 

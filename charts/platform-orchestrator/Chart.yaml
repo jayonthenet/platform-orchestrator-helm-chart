@@ -2,8 +2,8 @@ apiVersion: v2
 name: platform-orchestrator
 description: Platform Orchestrator
 type: application
-version: 0.3.0
-appVersion: "3.0.0"
+version: 0.4.0
+appVersion: "3.1.0"
 
 annotations:
   org.opencontainers.image.source: https://github.com/stellwerk-labs/platform-orchestrator-helm-chart
@@ -27,9 +27,6 @@ dependencies:
     version: "2.14.0"
     repository: "https://nats-io.github.io/k8s/helm/charts/"
     condition: nats.enabled
-  - name: spicedb
-    version: "0.1.0"
-    condition: spicedb.enabled
   - name: keycloak
     version: "0.1.0"
     condition: keycloak.enabled

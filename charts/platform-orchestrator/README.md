@@ -2,8 +2,9 @@
 
 Platform Orchestrator
 
-Chart `0.3.0` keeps NATS JetStream internal and exposes the stateless HTTPS
-runner gateway. Do not mix `v2` data-plane/runner images with `v3` images.
+Chart `0.4.0` embeds Casbin RBAC in IAM and automatically upgrades supported
+SpiceDB-based installations. It retains the stateless HTTPS runner gateway and
+internal NATS JetStream architecture from `0.3.0`.
 
 ## Architecture
 
@@ -18,7 +19,6 @@ The chart deploys the following components:
 | **PostgreSQL** | `cnpg-databases` | CloudNativePG-managed PostgreSQL cluster |
 | **NATS JetStream** | `nats` | Durable command and event broker |
 | **Runner gateway** | runner image | Outbound HTTPS interface for agents and deployment Jobs |
-| **SpiceDB** | `spicedb` | Zanzibar-inspired authorization engine |
 | **Keycloak** | `keycloak` | Identity provider and SSO |
 
 ## Prerequisites
@@ -38,6 +38,12 @@ helm install platform-orchestrator ./charts/platform-orchestrator \
   --create-namespace \
   -f my-values.yaml
 ```
+
+Upgrading from a SpiceDB-based installation causes a short IAM outage. The IAM
+Deployment uses `Recreate`, and its first replacement Pod serializes, resumes,
+and verifies the database migration before becoming ready. Back up PostgreSQL
+and read the [upgrade procedure](../../docs/migrations/spicedb-to-casbin.md)
+before upgrading to `0.4.0`.
 
 The generated shared NATS token is for local bootstrap. Production deployments
 should supply scoped internal service credentials with a defined issuance,
@@ -133,6 +139,7 @@ update the public runner gateway URL with it.
 | control-plane.serviceAccount.annotations | object | `{}` | Annotations to add to the service account |
 | control-plane.serviceAccount.create | bool | `true` | Create a dedicated service account |
 | control-plane.serviceAccount.name | string | `""` | Override the service account name (defaults to fullname) |
+| control-plane.strategy | object | `{}` | Deployment update strategy |
 | control-plane.tolerations | list | `[]` | Pod tolerations |
 | data-plane | object | `{"config":{"DATABASE_HOST":"platform-orchestrator-cnpg-databases","DATABASE_NAME":"orchestrator-dataplane","DATABASE_PORT":"5432","INTERNAL_DATAPLANE_HOSTNAME":"platform-orchestrator-data-plane.platform-orchestrator.svc.cluster.local","K8S_RUNNER_POD_SCHEDULING_DELAY":"30s","NATS_URL":"nats://platform-orchestrator-nats:4222","OIDC_ISSUER_URL":"","OTEL_EXPORTER_OTLP_ENDPOINT":"http://otel-agent-collector.opentelemetry.svc.cluster.local:4317","RUNNER_GATEWAY_INTERNAL_URL":"http://platform-orchestrator-runner-gateway:8080/runner-gateway","RUNNER_GATEWAY_URL":"https://api.platform-orchestrator.local/runner-gateway","RUNNER_IMAGE":"ghcr.io/stellwerk-labs/platform-orchestrator-runner:v3.0.0","VAULT_AUTH":"kubernetes:platform-orchestrator-data-plane:platform-orchestrator","VAULT_ROLE":"orchestrator-data-plane"},"env":[{"name":"DATABASE_PASSWORD","valueFrom":{"secretKeyRef":{"key":"password","name":"dataplane-db-secret"}}},{"name":"DATABASE_USER","valueFrom":{"secretKeyRef":{"key":"username","name":"dataplane-db-secret"}}},{"name":"NATS_TOKEN","valueFrom":{"secretKeyRef":{"key":"natsAuthToken","name":"platform-orchestrator-secrets"}}},{"name":"RUNNER_TOKEN_SALT","valueFrom":{"secretKeyRef":{"key":"runnerTokenSalt","name":"platform-orchestrator-secrets"}}}],"image":{"repository":"ghcr.io/stellwerk-labs/platform-orchestrator-dp","tag":"v3.0.0"},"service":{"createHeadless":true}}` | --------------------------------------------------------------------------- The data plane handles deployments, active resources and logs. It is deployed as a backend-module subchart. |
 | data-plane.affinity | object | `{}` | Pod affinity rules |
@@ -177,6 +184,7 @@ update the public runner gateway URL with it.
 | data-plane.serviceAccount.annotations | object | `{}` | Annotations to add to the service account |
 | data-plane.serviceAccount.create | bool | `true` | Create a dedicated service account |
 | data-plane.serviceAccount.name | string | `""` | Override the service account name (defaults to fullname) |
+| data-plane.strategy | object | `{}` | Deployment update strategy |
 | data-plane.tolerations | list | `[]` | Pod tolerations |
 | global.certificates | object | `{"createIssuer":true,"enabled":true,"issuer":{"acme":{"email":"","privateKeySecretRef":"letsencrypt-account-key","server":"https://acme-v02.api.letsencrypt.org/directory","solvers":[]},"ca":{"secretName":"ca-key-pair"},"type":"selfSigned"},"issuerRef":{"kind":"ClusterIssuer","name":"platform-orchestrator-issuer"}}` | ------------------------------------------------------------------------- |
 | global.certificates.createIssuer | bool | `true` | Create a ClusterIssuer resource (set to false if one already exists) |
@@ -246,16 +254,17 @@ update the public runner gateway URL with it.
 | global.keycloak.realm.clientSecretName | string | `"keycloak-client-secret"` | Secret name containing the OIDC client secret |
 | global.keycloak.realm.displayName | string | `"Platform Orchestrator"` | Realm display name shown in the UI |
 | global.keycloak.realm.name | string | `"platform-orchestrator"` | Realm name |
-| global.spicedb | object | `{"database":{"host":"platform-orchestrator-cnpg-databases","name":"orchestrator-spicedb","owner":"spicedb_user","passwordSecretKey":"password","passwordSecretName":"spicedb-db-secret","port":"5432"}}` | ------------------------------------------------------------------------- |
-| global.spicedb.database.host | string | `"platform-orchestrator-cnpg-databases"` | PostgreSQL host for SpiceDB |
-| global.spicedb.database.name | string | `"orchestrator-spicedb"` | Database name for SpiceDB |
-| global.spicedb.database.owner | string | `"spicedb_user"` | Database owner/user for SpiceDB |
-| global.spicedb.database.passwordSecretKey | string | `"password"` | Key within the secret containing the password |
-| global.spicedb.database.passwordSecretName | string | `"spicedb-db-secret"` | Secret name containing the SpiceDB database password |
-| global.spicedb.database.port | string | `"5432"` | PostgreSQL port for SpiceDB |
-| iam | object | `{"config":{"ALLOWED_GOOGLE_CLIENT_IDS":"","ALLOWED_MICROSOFT_CLIENT_IDS":"","DATABASE_HOST":"platform-orchestrator-cnpg-databases","DATABASE_NAME":"orchestrator-iam","DATABASE_PORT":"5432","KEYCLOAK_INTERNAL_URL":"http://platform-orchestrator-keycloak-service:8080","NATS_URL":"nats://platform-orchestrator-nats:4222","OTEL_EXPORTER_OTLP_ENDPOINT":"http://otel-agent-collector.opentelemetry.svc.cluster.local:4317","SPICEDB_URL":"platform-orchestrator-spicedb:50051","SSO_CALLBACK_URL_PATH":"/auth/sso/callback"},"env":[{"name":"DATABASE_PASSWORD","valueFrom":{"secretKeyRef":{"key":"password","name":"iam-db-secret"}}},{"name":"DATABASE_USER","valueFrom":{"secretKeyRef":{"key":"username","name":"iam-db-secret"}}},{"name":"NATS_TOKEN","valueFrom":{"secretKeyRef":{"key":"natsAuthToken","name":"platform-orchestrator-secrets"}}},{"name":"SPICEDB_PRE_SHARED_KEY","valueFrom":{"secretKeyRef":{"key":"preshared_key","name":"spicedb-cluster-config"}}},{"name":"KEYCLOAK_CLIENT_SECRET","valueFrom":{"secretKeyRef":{"key":"clientSecret","name":"keycloak-client-secret"}}},{"name":"SSO_STATE_SECRET","valueFrom":{"secretKeyRef":{"key":"ssoStateSecret","name":"platform-orchestrator-secrets"}}},{"name":"SUPER_USER_TOKEN","valueFrom":{"secretKeyRef":{"key":"superUserToken","name":"platform-orchestrator-secrets"}}}],"gatewayApi":{"route":{"admin":{"matches":[{"path":{"type":"PathPrefix","value":"/admin/orgs"}}],"rewrite":{"path":{"replacePrefixMatch":"/internal/orgs","type":"ReplacePrefixMatch"}}},"matches":[{"path":{"type":"RegularExpression","value":"/(auth/register|auth/logout|auth/login|auth/device|auth/sso/.+|(users/.+)|(orgs/[^/]+/members)|(orgs/[^/]+/memberships.*)|(orgs/[^/]+/users/[^/]+/memberships.*)|(orgs/[^/]+/service-users.*)|(orgs/[^/]+/invitations.*)|(orgs/[^/]+/roles.*)|(orgs/[^/]+/projects/[^/]+/users.*)|(orgs/[^/]+/projects/[^/]+/envs/[^/]+/users.*)|current-user|auth/check-permissions|(devicelogins/.+))"}}]}},"image":{"repository":"ghcr.io/stellwerk-labs/platform-orchestrator-iam","tag":"v2.0.0"}}` | --------------------------------------------------------------------------- The IAM service handles authentication, authorization, SSO, user management, and role-based access control. It is deployed as a backend-module subchart. |
+| global.legacySpiceDB | object | `{"database":{"host":"platform-orchestrator-cnpg-databases","name":"orchestrator-spicedb","owner":"spicedb_user","passwordSecretKey":"password","passwordSecretName":"spicedb-db-secret","port":"5432"},"preserveDatabase":true}` | ------------------------------------------------------------------------- |
+| global.legacySpiceDB.database.host | string | `"platform-orchestrator-cnpg-databases"` | Legacy SpiceDB PostgreSQL host |
+| global.legacySpiceDB.database.name | string | `"orchestrator-spicedb"` | Legacy SpiceDB database name |
+| global.legacySpiceDB.database.owner | string | `"spicedb_user"` | Legacy SpiceDB database owner |
+| global.legacySpiceDB.database.passwordSecretKey | string | `"password"` | Password key in the legacy database secret |
+| global.legacySpiceDB.database.passwordSecretName | string | `"spicedb-db-secret"` | Secret holding the legacy database password |
+| global.legacySpiceDB.database.port | string | `"5432"` | Legacy SpiceDB PostgreSQL port |
+| global.legacySpiceDB.preserveDatabase | bool | `true` | Preserve and manage the former SpiceDB database, owner, and credentials during the Casbin rollback window. Setting this to false leaves kept resources orphaned for explicit cleanup. |
+| iam | object | `{"config":{"ALLOWED_GOOGLE_CLIENT_IDS":"","ALLOWED_MICROSOFT_CLIENT_IDS":"","DATABASE_HOST":"platform-orchestrator-cnpg-databases","DATABASE_NAME":"orchestrator-iam","DATABASE_PORT":"5432","KEYCLOAK_INTERNAL_URL":"http://platform-orchestrator-keycloak-service:8080","NATS_URL":"nats://platform-orchestrator-nats:4222","OTEL_EXPORTER_OTLP_ENDPOINT":"http://otel-agent-collector.opentelemetry.svc.cluster.local:4317","SSO_CALLBACK_URL_PATH":"/auth/sso/callback"},"env":[{"name":"DATABASE_PASSWORD","valueFrom":{"secretKeyRef":{"key":"password","name":"iam-db-secret"}}},{"name":"DATABASE_USER","valueFrom":{"secretKeyRef":{"key":"username","name":"iam-db-secret"}}},{"name":"NATS_TOKEN","valueFrom":{"secretKeyRef":{"key":"natsAuthToken","name":"platform-orchestrator-secrets"}}},{"name":"KEYCLOAK_CLIENT_SECRET","valueFrom":{"secretKeyRef":{"key":"clientSecret","name":"keycloak-client-secret"}}},{"name":"SSO_STATE_SECRET","valueFrom":{"secretKeyRef":{"key":"ssoStateSecret","name":"platform-orchestrator-secrets"}}},{"name":"SUPER_USER_TOKEN","valueFrom":{"secretKeyRef":{"key":"superUserToken","name":"platform-orchestrator-secrets"}}}],"gatewayApi":{"route":{"admin":{"matches":[{"path":{"type":"PathPrefix","value":"/admin/orgs"}}],"rewrite":{"path":{"replacePrefixMatch":"/internal/orgs","type":"ReplacePrefixMatch"}}},"matches":[{"path":{"type":"RegularExpression","value":"/(auth/register|auth/logout|auth/login|auth/device|auth/sso/.+|(users/.+)|(orgs/[^/]+/members)|(orgs/[^/]+/memberships.*)|(orgs/[^/]+/users/[^/]+/memberships.*)|(orgs/[^/]+/service-users.*)|(orgs/[^/]+/invitations.*)|(orgs/[^/]+/roles.*)|(orgs/[^/]+/projects/[^/]+/users.*)|(orgs/[^/]+/projects/[^/]+/envs/[^/]+/users.*)|current-user|auth/check-permissions|(devicelogins/.+))"}}]}},"image":{"repository":"ghcr.io/stellwerk-labs/platform-orchestrator-iam","tag":"v2.1.0"},"strategy":{"type":"Recreate"}}` | --------------------------------------------------------------------------- The IAM service handles authentication, authorization, SSO, user management, and role-based access control. It is deployed as a backend-module subchart. |
 | iam.affinity | object | `{}` | Pod affinity rules |
-| iam.config | object | `{"ALLOWED_GOOGLE_CLIENT_IDS":"","ALLOWED_MICROSOFT_CLIENT_IDS":"","DATABASE_HOST":"platform-orchestrator-cnpg-databases","DATABASE_NAME":"orchestrator-iam","DATABASE_PORT":"5432","KEYCLOAK_INTERNAL_URL":"http://platform-orchestrator-keycloak-service:8080","NATS_URL":"nats://platform-orchestrator-nats:4222","OTEL_EXPORTER_OTLP_ENDPOINT":"http://otel-agent-collector.opentelemetry.svc.cluster.local:4317","SPICEDB_URL":"platform-orchestrator-spicedb:50051","SSO_CALLBACK_URL_PATH":"/auth/sso/callback"}` | Configuration environment variables (injected via ConfigMap) |
+| iam.config | object | `{"ALLOWED_GOOGLE_CLIENT_IDS":"","ALLOWED_MICROSOFT_CLIENT_IDS":"","DATABASE_HOST":"platform-orchestrator-cnpg-databases","DATABASE_NAME":"orchestrator-iam","DATABASE_PORT":"5432","KEYCLOAK_INTERNAL_URL":"http://platform-orchestrator-keycloak-service:8080","NATS_URL":"nats://platform-orchestrator-nats:4222","OTEL_EXPORTER_OTLP_ENDPOINT":"http://otel-agent-collector.opentelemetry.svc.cluster.local:4317","SSO_CALLBACK_URL_PATH":"/auth/sso/callback"}` | Configuration environment variables (injected via ConfigMap) |
 | iam.config.ALLOWED_GOOGLE_CLIENT_IDS | string | `""` | Comma-separated Google OAuth client IDs for social login (leave empty to disable) |
 | iam.config.ALLOWED_MICROSOFT_CLIENT_IDS | string | `""` | Comma-separated Microsoft OAuth client IDs for social login (leave empty to disable) |
 | iam.config.DATABASE_HOST | string | `"platform-orchestrator-cnpg-databases"` | PostgreSQL host (should match the CNPG cluster service name) |
@@ -264,18 +273,17 @@ update the public runner gateway URL with it.
 | iam.config.KEYCLOAK_INTERNAL_URL | string | `"http://platform-orchestrator-keycloak-service:8080"` | Keycloak internal URL (in-cluster service URL) |
 | iam.config.NATS_URL | string | `"nats://platform-orchestrator-nats:4222"` | NATS endpoint used for durable identity events |
 | iam.config.OTEL_EXPORTER_OTLP_ENDPOINT | string | `"http://otel-agent-collector.opentelemetry.svc.cluster.local:4317"` | OpenTelemetry collector endpoint |
-| iam.config.SPICEDB_URL | string | `"platform-orchestrator-spicedb:50051"` | SpiceDB gRPC endpoint for authorization |
 | iam.config.SSO_CALLBACK_URL_PATH | string | `"/auth/sso/callback"` | SSO callback URL path |
-| iam.env | list | `[{"name":"DATABASE_PASSWORD","valueFrom":{"secretKeyRef":{"key":"password","name":"iam-db-secret"}}},{"name":"DATABASE_USER","valueFrom":{"secretKeyRef":{"key":"username","name":"iam-db-secret"}}},{"name":"NATS_TOKEN","valueFrom":{"secretKeyRef":{"key":"natsAuthToken","name":"platform-orchestrator-secrets"}}},{"name":"SPICEDB_PRE_SHARED_KEY","valueFrom":{"secretKeyRef":{"key":"preshared_key","name":"spicedb-cluster-config"}}},{"name":"KEYCLOAK_CLIENT_SECRET","valueFrom":{"secretKeyRef":{"key":"clientSecret","name":"keycloak-client-secret"}}},{"name":"SSO_STATE_SECRET","valueFrom":{"secretKeyRef":{"key":"ssoStateSecret","name":"platform-orchestrator-secrets"}}},{"name":"SUPER_USER_TOKEN","valueFrom":{"secretKeyRef":{"key":"superUserToken","name":"platform-orchestrator-secrets"}}}]` | Additional environment variables (injected directly into the pod spec) Typically used for secret references |
+| iam.env | list | `[{"name":"DATABASE_PASSWORD","valueFrom":{"secretKeyRef":{"key":"password","name":"iam-db-secret"}}},{"name":"DATABASE_USER","valueFrom":{"secretKeyRef":{"key":"username","name":"iam-db-secret"}}},{"name":"NATS_TOKEN","valueFrom":{"secretKeyRef":{"key":"natsAuthToken","name":"platform-orchestrator-secrets"}}},{"name":"KEYCLOAK_CLIENT_SECRET","valueFrom":{"secretKeyRef":{"key":"clientSecret","name":"keycloak-client-secret"}}},{"name":"SSO_STATE_SECRET","valueFrom":{"secretKeyRef":{"key":"ssoStateSecret","name":"platform-orchestrator-secrets"}}},{"name":"SUPER_USER_TOKEN","valueFrom":{"secretKeyRef":{"key":"superUserToken","name":"platform-orchestrator-secrets"}}}]` | Additional environment variables (injected directly into the pod spec) Typically used for secret references |
 | iam.envFromSecrets | list | `[]` | Names of secrets to load as environment variables via envFrom |
 | iam.gatewayApi | object | `{"route":{"admin":{"matches":[{"path":{"type":"PathPrefix","value":"/admin/orgs"}}],"rewrite":{"path":{"replacePrefixMatch":"/internal/orgs","type":"ReplacePrefixMatch"}}},"matches":[{"path":{"type":"RegularExpression","value":"/(auth/register|auth/logout|auth/login|auth/device|auth/sso/.+|(users/.+)|(orgs/[^/]+/members)|(orgs/[^/]+/memberships.*)|(orgs/[^/]+/users/[^/]+/memberships.*)|(orgs/[^/]+/service-users.*)|(orgs/[^/]+/invitations.*)|(orgs/[^/]+/roles.*)|(orgs/[^/]+/projects/[^/]+/users.*)|(orgs/[^/]+/projects/[^/]+/envs/[^/]+/users.*)|current-user|auth/check-permissions|(devicelogins/.+))"}}]}}` | Gateway API HTTPRoute configuration for IAM |
 | iam.gatewayApi.route.admin | object | `{"matches":[{"path":{"type":"PathPrefix","value":"/admin/orgs"}}],"rewrite":{"path":{"replacePrefixMatch":"/internal/orgs","type":"ReplacePrefixMatch"}}}` | Admin API route configuration (rewrites /admin/orgs -> /internal/orgs) |
 | iam.gatewayApi.route.matches | list | `[{"path":{"type":"RegularExpression","value":"/(auth/register|auth/logout|auth/login|auth/device|auth/sso/.+|(users/.+)|(orgs/[^/]+/members)|(orgs/[^/]+/memberships.*)|(orgs/[^/]+/users/[^/]+/memberships.*)|(orgs/[^/]+/service-users.*)|(orgs/[^/]+/invitations.*)|(orgs/[^/]+/roles.*)|(orgs/[^/]+/projects/[^/]+/users.*)|(orgs/[^/]+/projects/[^/]+/envs/[^/]+/users.*)|current-user|auth/check-permissions|(devicelogins/.+))"}}]` | Path matching rules for IAM API endpoints (auth, users, roles, etc.) |
 | iam.gatewayApiOidc | object | `{"route":{}}` | Gateway API HTTPRoute for OIDC provider (created when global Gateway API is enabled) |
-| iam.image | object | `{"repository":"ghcr.io/stellwerk-labs/platform-orchestrator-iam","tag":"v2.0.0"}` | Container image for IAM |
+| iam.image | object | `{"repository":"ghcr.io/stellwerk-labs/platform-orchestrator-iam","tag":"v2.1.0"}` | Container image for IAM |
 | iam.image.pullPolicy | string | `"IfNotPresent"` | Image pull policy |
 | iam.image.repository | string | `"ghcr.io/stellwerk-labs/platform-orchestrator-iam"` | Image repository. Prepend repository hostname and path as per your setup, e.g. `my-registry.example.com/orchestrator/platform-orchestrator-iam` |
-| iam.image.tag | string | `"v2.0.0"` | Image tag |
+| iam.image.tag | string | `"v2.1.0"` | Image tag |
 | iam.nodeSelector | object | `{}` | Node selector constraints |
 | iam.otel | object | `{"enabled":false,"env":"production"}` | OpenTelemetry configuration |
 | iam.otel.enabled | bool | `false` | Enable OpenTelemetry instrumentation |
@@ -295,6 +303,7 @@ update the public runner gateway URL with it.
 | iam.serviceAccount.annotations | object | `{}` | Annotations to add to the service account |
 | iam.serviceAccount.create | bool | `true` | Create a dedicated service account |
 | iam.serviceAccount.name | string | `""` | Override the service account name (defaults to fullname) |
+| iam.strategy | object | `{"type":"Recreate"}` | Replace all IAM pods before starting the new version. This prevents old SpiceDB and new Casbin binaries from sharing the database during upgrades. |
 | iam.tolerations | list | `[]` | Pod tolerations |
 | keycloak | object | `{"enabled":true}` | Keycloak subchart (identity provider) |
 | keycloak.bootstrapAdmin | object | `{"secretName":"keycloak-bootstrap-admin"}` | Bootstrap admin credentials |
@@ -325,13 +334,6 @@ update the public runner gateway URL with it.
 | runnerGateway.gatewayApiOidc | object | `{"route":{"matches":[{"path":{"type":"RegularExpression","value":"/(.well-known/openid-configuration|.well-known/jwks)"}}]}}` | Gateway API HTTPRoute for OIDC endpoints (built-in OIDC provider) |
 | runnerGateway.serviceAccount | object | `{"allowCreateToken":true}` | Service account configuration |
 | runnerGateway.serviceAccount.allowCreateToken | bool | `true` | Allow the service account to create tokens (needed for Vault auth) |
-| spicedb | object | `{"enabled":true}` | SpiceDB subchart (authorization engine) |
-| spicedb.enabled | bool | `true` | Enable the in-cluster SpiceDB |
-| spicedb.initContainer | object | `{"image":"bitnami/kubectl:latest"}` | Init container configuration for creating the secret |
-| spicedb.initContainer.image | string | `"bitnami/kubectl:latest"` | kubectl image used by the init container |
-| spicedb.patches | list | `[]` | Strategic merge patches applied to SpiceDB resources Use this to inject sidecars (e.g., cloud-sql-proxy), add annotations, etc. Example (CloudSQL proxy sidecar):  - kind: Deployment    patch:      spec:        template:          spec:            initContainers:              - args:                  - --structured-logs                  - --port=5432                  - --auto-iam-authn                  - <cloudsql-instance-connection-name>                image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.14.1                name: cloud-sql-proxy            restartPolicy: Always            securityContext:              runAsNonRoot: true  - kind: Job    patch:      spec:        template:          spec:            initContainers:              - args:                  - --structured-logs                  - --port=5432                  - --auto-iam-authn                  - <cloudsql-instance-connection-name>                image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.14.1                name: cloud-sql-proxy                restartPolicy: Always                securityContext:                  runAsNonRoot: true  - kind: ServiceAccount    patch:      metadata:        annotations:          iam.gke.io/gcp-service-account: <gcp service account> |
-| spicedb.replicas | int | `1` | Number of SpiceDB replicas |
-| spicedb.secretName | string | `"spicedb-cluster-config"` | Name of the secret containing the SpiceDB cluster config (preshared key) |
 
 
 ## Environment Variables from Secrets
@@ -365,7 +367,6 @@ file. The tables below document the **default** configuration.
 | `DATABASE_USER` | `iam-db-secret` | `username` | PostgreSQL username |
 | `DATABASE_PASSWORD` | `iam-db-secret` | `password` | PostgreSQL password |
 | `NATS_TOKEN` | `platform-orchestrator-secrets` | `natsAuthToken` | NATS authentication token |
-| `SPICEDB_PRE_SHARED_KEY` | `spicedb-cluster-config` | `preshared_key` | SpiceDB pre-shared authentication key |
 | `KEYCLOAK_CLIENT_SECRET` | `keycloak-client-secret` | `clientSecret` | Keycloak OIDC client secret |
 | `SENDGRID_API_KEY` | | | SendGrid API key to enable email invitations (disabled by default) |
 | `SSO_STATE_SECRET` | `platform-orchestrator-secrets` | `ssoStateSecret` | Secret for SSO state parameter signing |
@@ -388,9 +389,7 @@ All secrets are **auto-generated** by the chart (or its subcharts) on first inst
 | `controlplane-db-secret` | `username`, `password` | cnpg-databases | Control Plane |
 | `dataplane-db-secret` | `username`, `password` | cnpg-databases | Data Plane |
 | `iam-db-secret` | `username`, `password` | cnpg-databases | IAM |
-| `spicedb-db-secret` | `username`, `password` | cnpg-databases | SpiceDB |
 | `keycloak-db-secret` | `username`, `password` | cnpg-databases | Keycloak |
-| `spicedb-cluster-config` | `preshared_key`, `datastore_uri` | spicedb | SpiceDB, IAM |
 | `keycloak-bootstrap-admin` | `username`, `password` | keycloak | Keycloak |
 | `keycloak-client-secret` | `clientSecret` | keycloak | Keycloak, IAM |
 | `platform-orchestrator-secrets` | `natsAuthToken`, `runnerTokenSalt`, `runnerGatewayReceiptKey`, `ssoStateSecret`, `superUserToken` | parent chart | Internal messaging, runner gateway, Control Plane, Data Plane, IAM |

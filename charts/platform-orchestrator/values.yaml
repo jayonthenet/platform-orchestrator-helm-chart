@@ -9,7 +9,7 @@
 #   - Console (frontend)
 #   - CNPG Databases (PostgreSQL via CloudNativePG)
 #   - NATS JetStream (durable message broker)
-#   - SpiceDB (authorization)
+#   - Embedded Casbin RBAC in IAM (authorization)
 #   - Keycloak (identity provider)
 # =============================================================================
 
@@ -214,12 +214,17 @@ runnerGateway:
 # The IAM service handles authentication, authorization, SSO, user management,
 # and role-based access control. It is deployed as a backend-module subchart.
 iam:
+  # -- Replace all IAM pods before starting the new version. This prevents old
+  # SpiceDB and new Casbin binaries from sharing the database during upgrades.
+  strategy:
+    type: Recreate
+
   # -- Container image for IAM
   image:
     # -- Image repository. Prepend repository hostname and path as per your setup, e.g. `my-registry.example.com/orchestrator/platform-orchestrator-iam`
     repository: ghcr.io/stellwerk-labs/platform-orchestrator-iam
     # -- Image tag
-    tag: v2.0.0
+    tag: v2.1.0
 
   # -- Configuration environment variables (injected via ConfigMap)
   config:
@@ -237,8 +242,6 @@ iam:
     DATABASE_PORT: "5432"
     # -- PostgreSQL host (should match the CNPG cluster service name)
     DATABASE_HOST: platform-orchestrator-cnpg-databases
-    # -- SpiceDB gRPC endpoint for authorization
-    SPICEDB_URL: "platform-orchestrator-spicedb:50051"
     # -- NATS endpoint used for durable identity events
     NATS_URL: "nats://platform-orchestrator-nats:4222"
     # -- OpenTelemetry collector endpoint
@@ -262,11 +265,6 @@ iam:
         secretKeyRef:
           name: platform-orchestrator-secrets
           key: natsAuthToken
-    - name: SPICEDB_PRE_SHARED_KEY
-      valueFrom:
-        secretKeyRef:
-          name: spicedb-cluster-config
-          key: preshared_key
     - name: KEYCLOAK_CLIENT_SECRET
       valueFrom:
         secretKeyRef:
@@ -379,11 +377,6 @@ messagingBootstrap:
     deadLetters: "536870912"
     runnerLogs: "2147483648"
     runnerBundles: "3221225472"
-
-# -- SpiceDB subchart (authorization engine)
-spicedb:
-  # -- Enable the in-cluster SpiceDB
-  enabled: true
 
 # -- Keycloak subchart (identity provider)
 keycloak:
@@ -582,21 +575,23 @@ global:
             kind: Secret
 
   # ---------------------------------------------------------------------------
-  # SpiceDB Configuration
+  # Legacy SpiceDB rollback data
   # ---------------------------------------------------------------------------
-  spicedb:
+  legacySpiceDB:
+    # -- Preserve and manage the former SpiceDB database, owner, and credentials during the Casbin rollback window. Setting this to false leaves kept resources orphaned for explicit cleanup.
+    preserveDatabase: true
     database:
-      # -- PostgreSQL host for SpiceDB
+      # -- Legacy SpiceDB PostgreSQL host
       host: platform-orchestrator-cnpg-databases
-      # -- PostgreSQL port for SpiceDB
+      # -- Legacy SpiceDB PostgreSQL port
       port: "5432"
-      # -- Database name for SpiceDB
+      # -- Legacy SpiceDB database name
       name: orchestrator-spicedb
-      # -- Database owner/user for SpiceDB
+      # -- Legacy SpiceDB database owner
       owner: spicedb_user
-      # -- Secret name containing the SpiceDB database password
+      # -- Secret holding the legacy database password
       passwordSecretName: spicedb-db-secret
-      # -- Key within the secret containing the password
+      # -- Password key in the legacy database secret
       passwordSecretKey: password
 
   # ---------------------------------------------------------------------------

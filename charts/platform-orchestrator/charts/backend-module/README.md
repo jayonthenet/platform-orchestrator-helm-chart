@@ -35,4 +35,5 @@ A Helm chart for deploying Platform Orchestrator backend module
 | serviceAccount.annotations | object | `{}` | Annotations to add to the service account |
 | serviceAccount.create | bool | `true` | Create a dedicated service account |
 | serviceAccount.name | string | `""` | Override the service account name (defaults to fullname) |
+| strategy | object | `{}` | Deployment update strategy |
 | tolerations | list | `[]` | Pod tolerations |

@@ -4,8 +4,6 @@ installPostgres: true
 
 installCertManager: true
 
-installSpiceDB: true
-
 installKeycloak: true
 
 installOpenTelemetry: true
@@ -45,9 +43,6 @@ platformOrchestratorValues:
                             values:
                               - nats
                       topologyKey: kubernetes.io/hostname
-
-  spicedb:
-    replicas: 2
 
 vaultValues:
   injector:

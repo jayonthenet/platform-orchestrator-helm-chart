@@ -4,6 +4,9 @@
 # -- Number of replicas
 replicaCount: 1
 
+# -- Deployment update strategy
+strategy: {}
+
 # -- Container image configuration
 image:
   # -- Image repository

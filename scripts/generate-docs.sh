@@ -79,7 +79,6 @@ add_subchart "backend-module" "iam"
 # Other subcharts
 add_subchart "console"        "console"
 add_subchart "cnpg-databases" "cnpg-databases"
-add_subchart "spicedb"        "spicedb"
 add_subchart "keycloak"       "keycloak"
 
 # ---------------------------------------------------------------------------

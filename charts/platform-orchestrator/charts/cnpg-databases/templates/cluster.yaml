@@ -31,15 +31,17 @@ spec:
         passwordSecret:
           name: {{ .passwordSecretName }}
       {{- end }}
-      {{- with .Values.global.spicedb.database }}
+      {{- if .Values.global.legacySpiceDB.preserveDatabase }}
+      {{- with .Values.global.legacySpiceDB.database }}
       - name: {{ .owner }}
         ensure: present
-        comment: "User for {{ .name }} database"
+        comment: "Rollback-only user for {{ .name }} database"
         login: true
         createdb: false
         superuser: false
         passwordSecret:
           name: {{ .passwordSecretName }}
+      {{- end }}
       {{- end }}
       {{- with .Values.global.keycloak.database }}
       - name: {{ .owner }}

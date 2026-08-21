@@ -1,5 +1,0 @@
-apiVersion: v2
-name: spicedb-operator
-description: SpaceDB Operator
-version: 0.1.0
-appVersion: "v1.22.0"
