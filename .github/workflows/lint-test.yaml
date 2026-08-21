@@ -24,3 +24,5 @@ jobs:
         run: ct lint --all --config .ct.yaml
       - name: Test runner gateway contract
         run: bash scripts/runner-gateway_test.sh
+      - name: Test Casbin upgrade contract
+        run: bash scripts/casbin-upgrade-contract_test.sh
