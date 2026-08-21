@@ -33,7 +33,7 @@ spec:
           args: ["gateway"]
           env:
             - name: NATS_URL
-              value: {{ .Values.global.NATS_URL | quote }}
+              value: {{ .Values.global.config.NATS_URL | quote }}
             - name: NATS_TOKEN
               valueFrom:
                 secretKeyRef:
