@@ -2,9 +2,10 @@
 
 {{ template "chart.description" . }}
 
-Chart `0.4.0` embeds Casbin RBAC in IAM and automatically upgrades supported
-SpiceDB-based installations. It retains the stateless HTTPS runner gateway and
-internal NATS JetStream architecture from `0.3.0`.
+Chart `0.4.1` completes configurable Casbin RBAC with console-based role
+management and automatically upgrades supported SpiceDB-based installations.
+It retains the stateless HTTPS runner gateway and internal NATS JetStream
+architecture from `0.3.0`.
 
 ## Architecture
 
@@ -43,7 +44,7 @@ Upgrading from a SpiceDB-based installation causes a short IAM outage. The IAM
 Deployment uses `Recreate`, and its first replacement Pod serializes, resumes,
 and verifies the database migration before becoming ready. Back up PostgreSQL
 and read the [upgrade procedure](../../docs/migrations/spicedb-to-casbin.md)
-before upgrading to `0.4.0`.
+before upgrading from a SpiceDB-based release.
 
 The generated shared NATS token is for local bootstrap. Production deployments
 should supply scoped internal service credentials with a defined issuance,

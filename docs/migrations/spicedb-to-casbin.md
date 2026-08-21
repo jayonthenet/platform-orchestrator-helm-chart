@@ -1,9 +1,9 @@
 # SpiceDB-to-Casbin chart upgrade
 
-Chart `0.4.0` replaces the external SpiceDB authorization service with Casbin
-embedded in IAM. An ordinary Helm upgrade performs the database migration and
-authorization reconciliation automatically. No migration Job or SpiceDB export
-is required.
+Chart `0.4.0` and later replace the external SpiceDB authorization service with
+Casbin embedded in IAM. An ordinary Helm upgrade performs the database migration
+and authorization reconciliation automatically. No migration Job or SpiceDB
+export is required.
 
 PostgreSQL remains the source of truth for roles and assignments. The chart
 retains the former `orchestrator-spicedb` database, owner, and credentials for
@@ -31,7 +31,7 @@ installation:
 ```bash
 helm upgrade platform-orchestrator \
   oci://ghcr.io/stellwerk-labs/charts/platform-orchestrator \
-  --version 0.4.0 \
+  --version 0.4.1 \
   --namespace platform-orchestrator \
   --values my-values.yaml \
   --wait \
