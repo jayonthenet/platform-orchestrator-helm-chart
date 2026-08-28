@@ -2,8 +2,8 @@ apiVersion: v2
 name: platform-orchestrator
 description: Platform Orchestrator
 type: application
-version: 0.5.0
-appVersion: "3.2.0"
+version: 0.6.0
+appVersion: "3.3.0"
 
 annotations:
   org.opencontainers.image.source: https://github.com/stellwerk-labs/platform-orchestrator-helm-chart

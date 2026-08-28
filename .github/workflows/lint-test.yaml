@@ -28,5 +28,7 @@ jobs:
         run: bash scripts/casbin-upgrade-contract_test.sh
       - name: Test IAM permission catalog route
         run: bash scripts/iam-permission-catalog-contract_test.sh
+      - name: Test IAM SCIM route contract
+        run: bash scripts/scim-route-contract_test.sh
       - name: Test NATS bootstrap contract
         run: bash scripts/nats-bootstrap-contract_test.sh
