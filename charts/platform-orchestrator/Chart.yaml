@@ -2,7 +2,7 @@ apiVersion: v2
 name: platform-orchestrator
 description: Platform Orchestrator
 type: application
-version: 0.6.0
+version: 0.6.1
 appVersion: "3.3.0"
 
 annotations:

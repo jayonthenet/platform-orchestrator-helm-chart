@@ -98,7 +98,7 @@ data-plane:
     # -- Image repository. Prepend repository hostname and path as per your setup, e.g. `my-registry.example.com/orchestrator/platform-orchestrator-dp`
     repository: ghcr.io/stellwerk-labs/platform-orchestrator-dp
     # -- Image tag
-    tag: v3.1.0
+    tag: v3.1.1
 
   # -- Service configuration
   service:
@@ -224,7 +224,7 @@ iam:
     # -- Image repository. Prepend repository hostname and path as per your setup, e.g. `my-registry.example.com/orchestrator/platform-orchestrator-iam`
     repository: ghcr.io/stellwerk-labs/platform-orchestrator-iam
     # -- Image tag
-    tag: v2.3.0
+    tag: v2.3.1
 
   # -- Configuration environment variables (injected via ConfigMap)
   config:
